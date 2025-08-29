@@ -1,0 +1,49 @@
+STRING
+	-...
+
+IF ELIF
+	-jz block:[BLOCK INDEX]:[BLOCK SUBINDEX + 1]
+
+ELSE:
+	-jmp end:[BLOCK INDEX]
+	-label block:[BLOCK INDEX]:[BLOCK SUBINDEX]
+
+END:IF
+	-label block:[BLOCK INDEX]:[BLOCK SUBINDEX]
+	-label end:[BLOCK INDEX]
+
+WHILE:
+	-label while:[BLOCK INDEX]
+
+IF:WHILE
+	-jz end:[BLOCK INDEX]
+
+END:WHILE
+	-jmp while:[BLOCK INDEX]
+	-label end:[BLOCK INDEX]
+
+IDENTIFIER:FUCTION
+	-call [LOCAL STACK SHIFT] func_[FUNCTION NAME]
+
+IDENTIFIER:LOCAL
+	-push_local [LOCAL INDEX]
+
+LET
+	-pop_local [LOCAL INDEX]
+
+
+FUNCTION
+	-label func_[FUNCTION NAME]
+	-[CONTENT]
+	-return
+
+RET
+	-return
+
+NUMBER
+	-push [VALUE]
+
+ASM
+	-[STRING]
+
+

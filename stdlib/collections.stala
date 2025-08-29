@@ -1,0 +1,70 @@
+# collections
+
+func new_array size do
+	size ++ sizeof(ptr) * malloc let array
+	array size !ptr
+	array
+end
+
+func array_get_size arr do
+	arr ?ptr
+end
+
+func array_get_index arr index do
+	arr array_get_size let size
+	index size >= if "array index out ouf bounds" error fail end
+	index 0 < if "array index out ouf bounds" error fail end
+	arr index ++ sizeof(ptr) * + ?ptr
+end
+
+func array_set_index arr index value do
+	arr array_get_size let size
+	index size >= if "array index out ouf bounds" error fail end
+	index 0 < if "array index out ouf bounds" error fail end
+	arr index ++ sizeof(ptr) * + value !ptr
+end
+
+func new_list size do
+	size ++ new_array let list
+	list 0 0 array_set_index
+	list
+end
+
+func list_get_size list do
+	list 0 array_get_index
+end
+
+func list_add do list_push end
+
+func list_push list value do
+	list list_get_size let list_size
+	list array_get_size let array_size
+	list_size -- array_size >= if "list index out of bounds" error fail end
+	list list_size ++ value array_set_index
+	list 0 list_size ++ array_set_index
+end
+
+func list_get_index list index do
+	list list_get_size let list_size
+	index list_size >= if "list index out of bounds" error fail end
+	index 0 < if "list index out of bounds" error fail end
+	list index ++ array_get_index
+end
+
+func list_pop list do
+	list list_get_size let list_size
+	list array_get_size let array_size
+	list_size 0 <= if "list index out of bounds" error fail end
+	list list_size array_get_index let value
+	list 0 list_size -- array_set_index
+	value
+end
+
+func list_peek list do
+	list list_get_size let list_size
+	list array_get_size let array_size
+	list_size 0 <= if "list index out of bounds" error fail end
+	list list_size array_get_index let value
+	value
+end
+

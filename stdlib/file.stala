@@ -1,0 +1,80 @@
+
+func EOF do -1 end
+
+#
+#
+# TODO: o_trunc does not work
+func create_and_open_file path do
+	# 01000 - o_create
+	# 00100 - o_trunc
+	# 00002 - read write
+	path 01102 0644 open
+end
+
+#
+#
+# return -1 on error
+func try_open_file path do
+	# 01000 - o_create
+	# 00100 - o_trunc
+	# 00003 - read write
+	path 2 0 open
+end
+
+#
+#
+# [path] -> [status]
+func remove_file path do
+	path unlink
+end
+
+func exists_file path do
+
+end
+
+#
+#
+# [fd] -> [status]
+func close_file fd do
+	fd close
+end
+
+func file_read_line fd buffer length do
+	
+	while true if
+		
+		fd file_read_char let char
+		buffer 0 !8
+		
+		char -1 != char "\n" ?8 != AND if
+			buffer  char !8
+			buffer ++ let buffer
+		else
+			ret
+		end
+		
+		
+	end
+	
+end
+
+func file_read_char fd do
+	"0" let buffer
+	fd buffer 1 read let len
+	len 1 != if
+		-1 ret
+	end
+	buffer ?8
+end
+
+
+func file_write_char fd char do
+	"0" let buffer
+	buffer char !8
+	fd buffer 1 write let len
+end
+
+func file_write_string fd str do
+	fd str str strlen write let len
+end
+

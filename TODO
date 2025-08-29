@@ -1,0 +1,16 @@
+
+
+Bugs:
+	- variable stack never uses the first element
+	- if statements in while conditions is not possible - replace with "do"?
+
+	
+TODO:
+	- buffer defines
+	- global variables
+	- strings
+	- escapement of asm string
+	- full error reporting and positioning
+	- label and label reference list
+
+	

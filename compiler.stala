@@ -1,0 +1,667 @@
+include "stdlib.stala"
+
+func main do
+
+	"outputs/tmpfile" remove_file
+	"outputs/tmpfile" create_and_open_file let out_file
+	
+	output_file out_file !ptr
+	
+	"compiler/comtest.stala" parse
+	
+	out_file close_file
+	
+	#"outputs/tmpfile" interpret
+	
+	"END OF MAIN" println
+end
+
+
+func output_file do "01234567" end
+
+
+#
+# TOKEN PARSER
+#
+
+func out_asm str do
+	str print
+	output_file ?ptr str file_write_string
+end
+
+func out_function_start str do
+	"label func_" out_asm
+	str out_asm
+	"\n" out_asm
+end
+
+func out_pop_local index do
+	"pop_local " out_asm
+	"0123456789012345678901234567890" let number_buffer
+	number_buffer index 10 int_to_str
+	number_buffer out_asm
+	"\n" out_asm
+end
+
+func out_push_local index do
+	"push_local " out_asm
+	"0123456789012345678901234567890" let number_buffer
+	number_buffer index 10 int_to_str
+	number_buffer out_asm
+	"\n" out_asm
+end
+
+func out_push_value value do
+	"push " out_asm
+	"0123456789012345678901234567890" let number_buffer
+	number_buffer value 10 int_to_str
+	number_buffer out_asm
+	"\n" out_asm
+end
+
+func out_call_function str locals do
+	"call " out_asm
+	"01234567" dup locals 10 int_to_str out_asm
+	" func_" out_asm
+	str out_asm
+	"\n" out_asm
+end
+
+func out_return str do
+	"return\n" out_asm
+end
+
+func out_if block do
+	"jz block:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	":" out_asm
+	"01234567" dup block block_get_block_sub_index ++ 10 int_to_str out_asm
+	"\n" out_asm
+end
+
+func out_else block do
+	"jmp end:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	"\n" out_asm
+	"label block:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	":" out_asm
+	"01234567" dup block block_get_block_sub_index 10 int_to_str out_asm
+	"\n" out_asm
+end
+
+func out_end_if block do
+	"label block:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	":" out_asm
+	"01234567" dup block block_get_block_sub_index 10 int_to_str out_asm
+	"\n" out_asm
+	"label end:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	"\n" out_asm
+end
+
+func out_while block do
+	"label while:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	"\n" out_asm
+end
+
+func out_while_if block do
+	"jz end:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	"\n" out_asm
+end
+
+func out_end_while block do
+	"jmp while:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	"\n" out_asm
+	"label end:" out_asm
+	"01234567" dup block block_get_block_index 10 int_to_str out_asm
+	"\n" out_asm
+end
+
+func string_list_search list length str do
+	while length 0 != if
+		list length -- sizeof(ptr) * + ?ptr str streq if
+			length -- ret
+		end
+		length -- let length
+	end
+	-1 ret
+end
+
+func new_block do 4 new_array end
+func block_get_block_index block             do block 0             array_get_index end
+func block_set_block_index block block_index do block 0 block_index array_set_index end
+
+func block_get_block_sub_index block                 do block 1                 array_get_index end
+func block_set_block_sub_index block block_sub_index do block 1 block_sub_index array_set_index end
+
+func block_get_block_type block            do block 2            array_get_index end
+func block_set_block_type block block_type do block 2 block_type array_set_index end
+
+func block_type_while    do "while" end
+func block_type_while_if do "while if" end
+func block_type_if       do "if" end
+func block_type_elif     do "elif" end
+func block_type_else     do "else" end
+
+func status_tokenize_spacers do 1 end
+func status_tokenize_token do 2 end
+func status_tokenize_string do 3 end
+func status_tokenize_escaped do 4 end
+func status_tokenize_comment do 5 end
+func status_tokenize_number do 6 end
+
+func status_parse_source do 1001 end
+func status_parse_function_name do 1002 end
+func status_parse_function_args do 1003 end
+func status_parse_function_body do 1004 end
+func status_parse_after_asm do 1005 end
+func status_parse_after_let do 1006 end
+func status_parse_include do 1007 end
+
+
+func parse path do
+	
+	path try_open_file let input_file
+	
+	" \t\n" let spacers
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/%" let token_first_chars
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/%" let token_chars
+	#"0123456789" let number_chars
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/% #.," let string_chars
+	"nt\\\"" let escaped_chars
+	
+	1024 malloc let token_string
+	
+	1024 malloc let function_string
+	4096 malloc let function_locals
+	0 let function_locals_length
+	
+	1024 new_list let block_stack
+	0 let block_index 
+	
+	4096 malloc let include_list
+	0 let include_list_length
+	
+	status_parse_source let parser_status
+	
+	# main token loop
+	true let parsing_tokens
+	while parsing_tokens if
+	
+		token_string 0 !8
+		status_tokenize_spacers let lexer_status
+		false let token_is_string
+		false let token_is_identifier
+		false let token_is_number
+		
+		#build token
+		true let lexing_token
+		while lexing_token if
+		
+			input_file file_read_char let char
+		
+			lexer_status status_tokenize_spacers = if
+			
+				spacers char strchr null != if
+					# do nothing
+					status_tokenize_spacers let lexer_status
+				
+				else char "\"" ?8 = elif
+					# begining of string
+					true let token_is_string
+					token_string char strcatchr
+					status_tokenize_string let lexer_status
+				
+				else token_first_chars char strchr null != elif
+					# begining of token
+					true let token_is_identifier
+					token_string char strcatchr
+					status_tokenize_token let lexer_status
+					
+				#else number_chars char strchr null != elif
+				#	# number
+				#	true let token_is_number
+				#	token_string char strcatchr
+				#	status_tokenize_token let lexer_status
+				#	
+				#else char "-" ?8 = elif
+				#	# negative number
+				#	true let token_is_number
+				#	token_string char strcatchr
+				#	status_tokenize_token let lexer_status
+				#
+				#else char "+" ?8 = elif
+				#	# positive number
+				#	true let token_is_number
+				#	token_string char strcatchr
+				#	status_tokenize_token let lexer_status
+				#
+				else char "#" ?8 = elif
+					# begining of comment
+					status_tokenize_comment let lexer_status
+			
+				else char EOF = elif
+					# end of file reached
+					false let lexing_token
+					
+				else
+					"invalid character: " error
+					"?" dup char !8  error
+					fail
+					
+				end
+		
+			else lexer_status status_tokenize_token = elif
+		
+				spacers char strchr null != if
+					# end of token reached
+					false let lexing_token
+					
+				else token_chars char strchr null != elif
+					# continue token
+					token_string char strcatchr
+					status_tokenize_token let lexer_status
+				
+				else char EOF = elif
+					# end of file reached
+					false let lexing_token
+					
+				else
+					"invalid character in token: " error
+					"?" dup char !8  error
+					fail
+					
+				end
+			
+			else lexer_status status_tokenize_string = elif
+		
+				string_chars char strchr null != if
+					# continue string
+					token_string char strcatchr
+					status_tokenize_string let lexer_status
+				
+				else char "\\" ?8 = elif
+					# escaped character
+					token_string char strcatchr
+					status_tokenize_escaped let lexer_status
+			
+				else char "\"" ?8 = elif
+					# end of string
+					token_string char strcatchr
+					false let lexing_token
+				
+				else
+					"invalid character in string: " error
+					"?" dup char !8 error
+					fail
+					
+				end
+			
+			else lexer_status status_tokenize_escaped = elif
+		
+				escaped_chars char strchr null != if
+					# continue string
+					token_string char strcatchr
+					status_tokenize_string let lexer_status
+				
+				else
+					"invalid character escaped character: " error
+					"?" dup char !8 error
+					fail
+					
+				end
+			
+			else lexer_status status_tokenize_comment = elif
+			
+				char "\n" ?8 = if
+					# end of comment
+					status_tokenize_spacers let lexer_status
+				
+				else char EOF = elif
+					# end of file reached
+					false let lexing_token
+				
+				else
+					# character in comment
+				end
+			
+			else
+				"unimplementad lexer status" error
+				 fail
+				 
+			end
+		
+		end
+
+		#token_string strlen 0 != if token_string println end
+		
+		# identify token
+		parser_status status_parse_source = if
+			
+			token_string "func" streq if
+				0 let function_locals_length
+				status_parse_function_name let parser_status
+			
+			else token_string "include" streq elif
+				status_parse_include let parser_status
+				
+			else token_string strlen 0 = elif
+				# end of tokens
+				include_list_length 0 != if
+					# more included files to parse
+					include_list_length -- let include_list_length
+					include_list include_list_length sizeof(ptr) * + ?ptr let include_string
+					
+					input_file close_file
+					include_string try_open_file let input_file
+					
+					input_file -1 = if
+						"unable to find file: " error
+						include_string error
+						fail
+					end
+				else
+					# no more files to include, stop parsing
+					false let parsing_tokens
+				end
+				
+			else
+				"unexpected token in source: " error
+				token_string error
+				fail
+				
+			end
+		
+		else parser_status status_parse_include = elif
+			
+			token_is_string if
+				# file name string
+				token_string strlen let token_string_length
+				token_string_length 1 - malloc let include_string
+				token_string ++ include_string token_string_length 2 - memcpy
+				include_string token_string_length + 2 - 0 !8
+				
+				include_list include_list_length sizeof(ptr) * + include_string !ptr
+				include_list_length ++ let include_list_length
+				
+				status_parse_source let parser_status
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after include: " error
+				fail
+			
+			else
+				"unexpected token after include: " error
+				token_string error
+				fail
+				
+			end
+		
+		else parser_status status_parse_function_name = elif
+			
+			token_is_identifier != if
+				# the name of the function
+				function_string token_string strcpy
+				token_string out_function_start
+				status_parse_function_args let parser_status
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after func" error
+				fail
+			
+			else
+				"unexpected token after func: " error
+				token_string error
+				fail
+				
+			end
+			
+		else parser_status status_parse_function_args = elif
+			
+			token_string "do" streq if
+				# end of function argument declaration
+				status_parse_function_body let parser_status
+				
+				#reverse order of arguments
+				function_locals let tmp_ptr1
+				function_locals function_locals_length -- sizeof(ptr) * + let tmp_ptr2
+				
+				while tmp_ptr2 tmp_ptr1 > if
+					tmp_ptr1 ?ptr let tmp_v1
+					tmp_ptr2 ?ptr let tmp_v2
+					tmp_ptr1 tmp_v2 !ptr
+					tmp_ptr2 tmp_v1 !ptr
+					tmp_ptr1 sizeof(ptr) + let tmp_ptr1
+					tmp_ptr2 sizeof(ptr) - let tmp_ptr2
+				end
+				
+			else token_is_identifier elif
+				# function argument identifier
+				function_locals_length out_pop_local
+				token_string strlen ++ malloc let local_variable_string
+				local_variable_string token_string strcpy
+				function_locals function_locals_length sizeof(ptr) * + local_variable_string !ptr
+				function_locals_length ++ let function_locals_length
+				status_parse_function_args let parser_status
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens in function arguments" error
+				fail
+			
+			else
+				"unexpected token in function argument: " error
+				token_string error
+				fail
+				
+			end
+			
+		else parser_status status_parse_function_body = elif
+			
+			token_string "while" streq if
+				#-label while:[block index]
+				new_block let nblock
+				nblock block_index block_set_block_index
+				block_index ++ let block_index
+				nblock 0 block_set_block_sub_index
+				nblock block_type_while block_set_block_type
+				block_stack nblock list_push
+				nblock out_while
+				
+			else token_string "if" streq elif
+				# conditional jump to next sub block
+				#-jz label block[block]:[sub block + 1]
+				
+				# check if this is a while - if
+				false let if_is_while_if
+				block_stack list_get_size 0 != if
+					block_stack list_peek let nblock
+					nblock block_get_block_type block_type_while = if
+						nblock block_type_while_if block_set_block_type
+						nblock out_while_if
+						true let if_is_while_if
+					end
+				end
+				
+				# if is if
+				if_is_while_if false = if
+					new_block let nblock
+					nblock block_index block_set_block_index
+					block_index ++ let block_index
+					nblock 0 block_set_block_sub_index
+					nblock block_type_if block_set_block_type
+					block_stack nblock list_push
+					nblock out_if
+				end
+				
+		
+			else token_string "elif" streq elif
+				# conditional jump to next sub block
+				#-jz label block[block]:[sub block + 1]
+				
+				block_stack list_get_size 0 = if
+					"elif can not be the start of a block" error fail
+				end
+				block_stack list_peek let nblock
+				
+				nblock block_get_block_type block_type_else != if
+					"elif can only come after else" error fail
+				end
+				
+				nblock nblock block_get_block_sub_index ++ block_set_block_sub_index
+				nblock block_type_elif block_set_block_type
+				nblock out_if
+		
+			else token_string "else" streq elif
+				#-jmp label end:[block index]
+				#-label block:[block index]:[sub index]
+				
+				block_stack list_get_size 0 = if
+					"else can not be the start of a block" error fail
+				end
+				block_stack list_peek let nblock
+				
+				nblock block_get_block_type block_type_if != 
+				nblock block_get_block_type block_type_elif != AND if
+					"else can only come after if or elif " error nblock block_get_block_type error fail
+				end
+				
+				nblock nblock block_get_block_sub_index ++ block_set_block_sub_index
+				nblock block_type_else block_set_block_type
+				nblock out_else
+		
+			else token_string "end" streq elif
+				
+				block_stack list_get_size 0 = if
+					# end of function
+					status_parse_source let parser_status
+					out_return
+					
+				else
+					block_stack list_pop let nblock
+					
+					nblock block_get_block_type block_type_while = if
+						"end can not come after while" error fail
+						
+					else nblock block_get_block_type block_type_while_if = elif
+						nblock out_end_while
+						
+					else nblock block_get_block_type block_type_if = 
+					     nblock block_get_block_type block_type_elif = OR
+					     nblock block_get_block_type block_type_else = OR elif
+					     	nblock nblock block_get_block_sub_index ++ block_set_block_sub_index
+							nblock out_end_if
+						
+					else
+						"unknown block type: " error nblock block_get_block_type error fail
+					end
+				
+				end
+		
+			else token_string "ret" streq elif
+				out_return
+		
+			else token_string "let" streq elif
+				status_parse_after_let let parser_status
+		
+			else token_string "asm" streq elif
+				status_parse_after_asm let parser_status
+		
+			else token_string 10 is_str_int elif
+				# number to push
+				token_string 10 str_to_int out_push_value
+				
+			else token_is_identifier elif 
+				# identifier is a local variable or function call
+				function_locals function_locals_length token_string string_list_search let local_index
+				
+				local_index -1 != if
+					# identifier is a local variable
+					local_index out_push_local
+					
+				else
+					# identifier is a function
+					token_string function_locals_length out_call_function
+				end
+				
+			else token_is_string elif
+				#string
+				# TODO: ---------------------------------------------------
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens in function body" error
+				fail
+			
+			else
+				"unexpected token in function body: " error
+				token_string error
+				fail
+				
+			end
+			
+		else parser_status status_parse_after_asm = elif
+			
+			token_is_string if
+				# TODO: unescape string properly
+				status_parse_function_body let parser_status
+				token_string dup strlen -- + 0 !8
+				token_string ++ out_asm
+				"\n" out_asm
+				
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after asm" error
+				fail
+			
+			else
+				"unexpected token after asm: " error
+				token_string error
+				fail
+				
+			end
+		
+		else parser_status status_parse_after_let = elif
+			
+			token_is_identifier if
+				# local variable identifier
+				function_locals function_locals_length token_string string_list_search let local_index
+				
+				local_index -1 = if
+					# local variable is not already defined
+					function_locals_length out_pop_local
+					token_string strlen ++ malloc let local_variable_string
+					local_variable_string token_string strcpy
+					function_locals function_locals_length sizeof(ptr) * + local_variable_string !ptr
+					function_locals_length ++ let function_locals_length
+				
+				else
+					# local variable is already defined
+					local_index out_pop_local
+				end
+
+				status_parse_function_body let parser_status
+				
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after let" error
+				fail
+			
+			else
+				"unexpected token after let: " error
+				token_string error
+				fail
+				
+			end
+		
+		else
+			"unimplemented parser status" error
+			fail
+			
+		end
+		
+	end
+	
+end
+
