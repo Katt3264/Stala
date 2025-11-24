@@ -1,22 +1,19 @@
 package main;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.util.Iterator;
 
 import utility.Logger;
 import utility.TOKEN_TYPE;
 import utility.Token;
 import utility.StringUtill;
 
-public class Tokenizer {
+public class Tokenizer implements Iterator<Token> {
 	
 	private Token next;
-	private Token last;
+	private final String sourceName;
 	private int row = 1;
 	private int col = 1;
-	private String fileName;
-	private FileReader out;
+	private final Iterator<Character> charIter;
 	
 	private static String spacer = " \n\t";
 	private static String lowerCase = "abcdefghijklmnopqrstuvwxyz";
@@ -36,19 +33,31 @@ public class Tokenizer {
 					"sizeof(ptr)",
 			};
 	
-	public Tokenizer(File source)
+	public Tokenizer(Iterator<Character> charIter, String sourceName)
 	{
-		fileName = source.getName();
-		try {
-			out = new FileReader(source);
-			tryTokenizeNext();
-		} catch (IOException e) {
-			e.printStackTrace();
-			throw new RuntimeException();
-		}
+		this.charIter = charIter;
+		this.sourceName = sourceName;
+		tryTokenizeNext();
 	}
 	
-	public boolean hasToken()
+	@Override
+	public boolean hasNext() 
+	{
+		if(next == null)
+			tryTokenizeNext();
+		
+		return next != null;
+	}
+
+	@Override
+	public Token next() 
+	{
+		Token ret = next;
+		next = null;
+		return ret;
+	}
+	
+	/*public boolean hasToken()
 	{
 		return next != null;
 	}
@@ -72,30 +81,27 @@ public class Tokenizer {
 	public boolean moveNext()
 	{
 		last = next;
-		try {
-			tryTokenizeNext();
-		} catch (IOException e) {
-			next = null;
-		}
+		next = null;
+		tryTokenizeNext();
 		
 		if(next != null)
 			last = null;
 		
 		return next != null;
-	}
+	}*/
 	
 	// row col is one char ahead
-	private int readNextChar() throws IOException
+	private int readNextChar()
 	{
-		int i = out.read();
+		if(!charIter.hasNext())
+			return -1;
 		
-		if(i == -1)
-			return i;
+		char c = charIter.next();
 		
-		if(!StringUtill.validSourceFileCharacter((char)i))
-			Logger.failTokenize("invalid character", fileName, row, col);
+		if(!StringUtill.validSourceFileCharacter(c))
+			Logger.failTokenize("invalid character", sourceName, row, col);
 		
-		if(i == '\n')
+		if(c == '\n')
 		{
 			col = 1;
 			row++;
@@ -105,10 +111,10 @@ public class Tokenizer {
 			col++;
 		}
 		
-		return i;
+		return c;
 	}
 	
-	private void tryTokenizeNext() throws IOException
+	private void tryTokenizeNext()
 	{
 		String tok = "";
 		int ch = readNextChar();
@@ -177,9 +183,9 @@ public class Tokenizer {
 	private Token buildToken(String text, int t_col, int t_row)
 	{
 		Token t = new Token();
-		t.value = text;
+		t.text = text;
 		t.type = evaluateOp(text);
-		t.file = fileName;
+		t.source = sourceName;
 		t.column = t_col;
 		t.row = t_row;
 		
@@ -263,7 +269,7 @@ public class Tokenizer {
 			return TOKEN_TYPE.IDENTIFIER;
 		}
 		
-		Logger.failTokenize("Invalid token: " + tok, fileName, row, col);
+		Logger.failTokenize("Invalid token: " + tok, sourceName, row, col);
 		return null;
 	}
 	
@@ -300,5 +306,7 @@ public class Tokenizer {
 		}
 		return false;
 	}
+
+	
 
 }

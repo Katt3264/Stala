@@ -1,0 +1,122 @@
+include "stdlib.stala"
+
+func main to do
+
+	# push number to data stack and print it
+	123 print_int "\n" print
+	
+	# push string to data stack and print it
+	"hello world" println
+
+	# addition
+	1 2 + print_int "\n" print
+	
+	# compare
+	1 2 > print_int "\n" print # false
+	2 1 > print_int "\n" print # true
+	2 2 > print_int "\n" print # false
+	
+	# shift
+	1 63 << print_hex # 9223372036854775808
+	256 4 >> print_int "\n" print # 16
+	256 256 256 256 256 256 256 * * * * * * 8 8 8 8 8 8 8 + + + + + + >> print_int "\n" print # 1
+
+	# bitwise
+	7 3 AND print_int "\n" print # 3
+	1 8 OR print_int "\n" print # 9
+	9223372036854775807 255 AND print_int "\n" print # 255
+	0 NOT print_int "\n" print # 18446744073709551615
+
+	# let
+	123 let variable
+	variable print_int "\n" print
+	variable variable + print_int "\n" print
+
+	#if statement
+	"--if statement--" println
+	1 let c1
+	c1 if
+		"if 1" println
+	end
+	
+	# if else statement
+	"--if else--" println
+	1 c1 let
+	c1 if
+		"if else 1" println
+	else
+		"if else 2" println
+	end
+	
+	# if chain terminating with end
+	"--if chain--" println
+	1 let c1
+	1 let c2
+	c1 if
+		"elif else end 1" println
+	else c2 elif
+		"elif else end 2" println
+	else
+		"elif else end 3" println
+	end
+	
+	# if chain terminating with else end
+	"--if chain--" println
+	1 let c1
+	1 let c2
+	1 let c3
+	c1 if
+		"elif end 1" println
+	else c2 elif
+		"elif end 2" println
+	else c3 elif
+		"elif end 3" println
+	end
+	
+	# while loop
+	"--while loop--" println
+	4 let c
+	while c 0 != if
+		"while loop" println
+		c -- let c
+	end
+	
+	# function calls
+	"--function calls--" println
+	function
+	1 2 sum print_int "\n" print
+	
+	# memory read write
+	"--memory read write--" println
+	8 malloc let ptr
+	ptr print_int "\n" print
+	ptr 1234567890 !ptr
+	ptr ?ptr print_int "\n" print
+	ptr 255 !8
+	ptr ?8 print_int "\n" print
+	ptr free
+	
+	# memory to memory coppy
+	"--memory to memory--" println
+	"hello string............" let ptr_to_str
+	256 malloc let ptr_to_mem					# allocate 256 bytes of memory
+	ptr_to_str strlen ++ let str_len          		# include last null byte
+	ptr_to_str ptr_to_mem str_len memcpy      		# copy string
+	ptr_to_str ptr_to_mem 15 + str_len memcpy 		# copy string again with offset
+	ptr_to_mem println						# print resulting string
+	ptr_to_mem free						# deallocate 256 bytes of memory
+	
+	# TODO: Memory map syscall (mmap)
+	
+	"completed" println
+end
+
+func function do
+	"hello from function" println
+end
+
+func sum x y to z do
+	x y + ret
+end
+
+	

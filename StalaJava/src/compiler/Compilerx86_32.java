@@ -10,7 +10,7 @@ import main.Main;
 import utility.Function;
 import utility.Logger;
 import utility.Program;
-import utility.SourceFile;
+import utility.Source;
 import utility.StringUtill;
 import utility.TOKEN_TYPE;
 import utility.Token;
@@ -67,7 +67,7 @@ public class Compilerx86_32 {
 		out.println("ret");
 		out.println("");
 		
-		for(Entry<String, SourceFile> nameSource : program.sourceMap.entrySet())
+		for(Entry<String, Source> nameSource : program.sourceMap.entrySet())
 		{
 			for(Entry<String, Function> nameFunction : nameSource.getValue().functionMap.entrySet())
 			{
@@ -80,17 +80,20 @@ public class Compilerx86_32 {
 		//out.println("str_1: db \"Hello, world!\",10");
 		//out.println(".len: equ $ - str_1");
 		
-		for(Entry<String, SourceFile> nameSource : program.sourceMap.entrySet())
+		for(Entry<String, Source> nameSource : program.sourceMap.entrySet())
 		{
-			for(Entry<String, String> nameString : nameSource.getValue().stringMap.entrySet())
+			for(Entry<String, Function> nameFunction : nameSource.getValue().functionMap.entrySet())
 			{
-				out.print(nameString.getKey() + ": db ");
-				byte[] bytes = StringUtill.unEscapeString(nameString.getValue()).getBytes();
-				for(byte b : bytes)
+				for(Entry<String, String> nameString : nameFunction.getValue().stringMap.entrySet())
 				{
-					out.print(b + ",");
+					out.print(nameString.getKey() + ": db ");
+					byte[] bytes = StringUtill.unEscapeString(nameString.getValue()).getBytes();
+					for(byte b : bytes)
+					{
+						out.print(b + ",");
+					}
+					out.println("0");
 				}
-				out.println("0");
 			}
 		}
 		out.println("");
@@ -120,7 +123,7 @@ public class Compilerx86_32 {
 		out.println("");
 	}
 	
-	private static void printFunctionMacOSx86_64(Function function, SourceFile s, Program p, PrintWriter out)
+	private static void printFunctionMacOSx86_64(Function function, Source s, Program p, PrintWriter out)
 	{
 		out.println(function.label + ":");
 		
@@ -153,14 +156,14 @@ public class Compilerx86_32 {
 		out.println("");
 	}
 	
-	private static void printTokensMacOSx86_64(Function f, SourceFile s, Program p, PrintWriter out)
+	private static void printTokensMacOSx86_64(Function f, Source s, Program p, PrintWriter out)
 	{
 		Token token = f.content;
 		
 		while(token != null)
 		{
 			TOKEN_TYPE type = token.type;
-			String value = token.value;
+			String value = token.text;
 			
 			if(type == TOKEN_TYPE.NUMBER)
 			{
@@ -319,7 +322,7 @@ public class Compilerx86_32 {
 			else if(type == TOKEN_TYPE.ASM)
 			{
 				out.println(";; asm");
-				out.println(StringUtill.unEscapeString(token.value));
+				out.println(StringUtill.unEscapeString(token.text));
 			}
 			else if(type == TOKEN_TYPE.IDENTIFIER)
 			{

@@ -4,9 +4,9 @@ public class Token {
 	public final String label = getLabel();
 	
 	public TOKEN_TYPE type;
-	public String value;
+	public String text;
 	
-	public String file;
+	public String source;
 	public int column;
 	public int row;
 	

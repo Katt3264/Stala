@@ -9,10 +9,6 @@ func error str do
 	10000000 while dup 0 != if -- end
 end
 
-func print_intrinsic num do
-	"###print_intrinsic is not implemented###" println
-end
-
 func print_hex num do
 	
 	"1234567890123456" let tmp

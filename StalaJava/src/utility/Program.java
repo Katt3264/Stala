@@ -1,8 +1,13 @@
 package utility;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
+
+import main.Tokenizer;
 
 public class Program {
 	
@@ -10,16 +15,60 @@ public class Program {
 	public final long variableStackSize = 256*256;
 	public final long memorySize = 256*256*256;
 	
-	public SourceFile main;
+	public String[] paths;
+	public Source main;
 	
-	public Map<String, SourceFile> sourceMap = new TreeMap<String, SourceFile>();
+	public Map<String, Source> sourceMap = new TreeMap<String, Source>();
 	
 	
+	public static Program parseProgram(Iterator<Token> source, String input, String[] paths)
+	{
+		Program prog = new Program();
+		prog.paths = paths;
+		prog.main = Source.parseSource(source, input);
+		prog.sourceMap.put(input, prog.main);
+		
+		recursiveSourceInclude(prog.main, prog);
+		
+		return prog;
+	}
 	
-	public Function getExternalFunction(SourceFile s, Program p, String name, Token t)
+	public static void recursiveSourceInclude(Source source, Program prog)
+	{
+		for(String include : source.includes)
+		{
+			if(!prog.sourceMap.containsKey(include))
+			{
+				Source includeSource = findSource(include, prog.paths);
+				if(includeSource == null)
+					Logger.fail("in source: " + source.name + " could not find include: " + include);
+				
+				prog.sourceMap.put(include, includeSource);
+				recursiveSourceInclude(includeSource, prog);
+			}
+		}
+	}
+	
+	public static Source findSource(String name, String[] searchPaths)
+	{
+		for(String path : searchPaths) 
+		{
+			File f = new File(path + "/" + name);
+			if(f.exists() && !f.isDirectory()) { 
+			    try {
+					return Source.parseSource(new Tokenizer(new FileCharacterIterator(f), name), name);
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return null;
+	}
+	
+	public Function getExternalFunction(Source s, Program p, String name, Token t)
 	{
 		Function ret = null;
-		for(Entry<String, SourceFile> ss : p.sourceMap.entrySet())
+		for(Entry<String, Source> ss : p.sourceMap.entrySet())
 		{
 			Function f = ss.getValue().functionMap.get(name);
 			if(f != null)

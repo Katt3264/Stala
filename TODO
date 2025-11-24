@@ -7,10 +7,9 @@ Bugs:
 	
 TODO:
 	- buffer defines
-	- global variables
+	- global variables (let outside function)
 	- strings
 	- escapement of asm string
 	- full error reporting and positioning
 	- label and label reference list
 
-	

@@ -11,7 +11,7 @@ import main.Main;
 import utility.Function;
 import utility.Logger;
 import utility.Program;
-import utility.SourceFile;
+import utility.Source;
 import utility.StringUtill;
 import utility.TOKEN_TYPE;
 import utility.Token;
@@ -40,7 +40,7 @@ public class CompilerStalaBytes {
 		ia.instructionCall(program.main.functionMap.get("main").label);
 		ia.instructionExit();
 		
-		for(Entry<String, SourceFile> nameSource : program.sourceMap.entrySet())
+		for(Entry<String, Source> nameSource : program.sourceMap.entrySet())
 		{
 			for(Entry<String, Function> nameFunction : nameSource.getValue().functionMap.entrySet())
 			{
@@ -48,23 +48,26 @@ public class CompilerStalaBytes {
 			}
 		}
 		
-		for(Entry<String, SourceFile> nameSource : program.sourceMap.entrySet())
+		for(Entry<String, Source> nameSource : program.sourceMap.entrySet())
 		{
-			for(Entry<String, String> nameString : nameSource.getValue().stringMap.entrySet())
+			for(Entry<String, Function> nameFunction : nameSource.getValue().functionMap.entrySet())
 			{
-				ia.labelHere(nameString.getKey());
-				byte[] bytes = StringUtill.unEscapeString(nameString.getValue()).getBytes();
-				for(byte b : bytes)
+				for(Entry<String, String> nameString : nameFunction.getValue().stringMap.entrySet())
 				{
-					ia.dataByte(b);
+					ia.labelHere(nameString.getKey());
+					byte[] bytes = StringUtill.unEscapeString(nameString.getValue()).getBytes();
+					for(byte b : bytes)
+					{
+						ia.dataByte(b);
+					}
+					ia.dataByte((byte)0);
 				}
-				ia.dataByte((byte)0);
 			}
 		}
 		
 	}
 	
-	private static void printFunctionStalaBytes(Function function, SourceFile s, Program p)
+	private static void printFunctionStalaBytes(Function function, Source s, Program p)
 	{
 		ia.labelHere(function.label);
 		ia.instructionLocals(function.locals.size());
@@ -78,14 +81,14 @@ public class CompilerStalaBytes {
 		ia.instructionReturn();
 	}
 	
-	private static void printTokensStalaBytes(Function f, SourceFile s, Program p)
+	private static void printTokensStalaBytes(Function f, Source s, Program p)
 	{
 		Token token = f.content;
 		
 		while(token != null)
 		{
 			TOKEN_TYPE type = token.type;
-			String value = token.value;
+			String value = token.text;
 			
 			if(type == TOKEN_TYPE.NUMBER)
 			{

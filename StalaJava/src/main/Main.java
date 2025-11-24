@@ -1,23 +1,23 @@
 package main;
 
 import java.io.File;
-
-import byteCompile.CompilerStalaBytes;
+import java.io.FileNotFoundException;
 import compiler.CompilerMacOSx86_64;
+import utility.FileCharacterIterator;
 import utility.Program;
 
 public class Main {
 	
-	public static String output = "output";
 	public static String input = "";
+	public static String output = "";
 	public static String sources = "../:../stdlib";
+	
 	public static boolean run = false;
 	public static String[] progArgs = new String[0];
 	
-	
-	public static void main(String[] args)
+	public static void main(String[] args) throws FileNotFoundException
 	{
-		String progIn = "stala ../compiler.stala -out ../outputs/stala_compiler";
+		String progIn = "stala ../examples/syntax.stala -out ../outputs/output";
 		
 		args = progIn.split(" ");
 		
@@ -42,7 +42,7 @@ public class Main {
 			}
 		}
 		
-		if(input.equals(""))
+		if(input.equals("") || output.equals(""))
 		{
 			System.out.println("invalid arguments, use:");
 			System.out.println("stala <Input> -out <Output>");
@@ -50,15 +50,11 @@ public class Main {
 			return;
 		}
 		
-		Program prog = TokenParse.parseProgram(new File(input));
+		Program prog = Program.parseProgram(new Tokenizer(new FileCharacterIterator(new File(input)), input), input, sources.split(":"));
 		
 		try {
-			//Compilerx86_32.compile(prog);
-			
 			CompilerMacOSx86_64.compile(prog);
-			//CompilerMacOSx86_64.run();
-			
-			//CompilerStalaBytes.compile(prog);
+			CompilerMacOSx86_64.run();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
