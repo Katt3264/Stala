@@ -51,9 +51,18 @@ public class Program {
 	
 	public static Source findSource(String name, String[] searchPaths)
 	{
+		File f = new File(name);
+		if(f.exists() && !f.isDirectory()) { 
+		    try {
+				return Source.parseSource(new Tokenizer(new FileCharacterIterator(f), name), name);
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+		
 		for(String path : searchPaths) 
 		{
-			File f = new File(path + "/" + name);
+			f = new File(path + "/" + name);
 			if(f.exists() && !f.isDirectory()) { 
 			    try {
 					return Source.parseSource(new Tokenizer(new FileCharacterIterator(f), name), name);

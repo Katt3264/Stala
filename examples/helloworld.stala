@@ -1,0 +1,5 @@
+include "stdlib.stala"
+
+func main do
+	"Hello world!" println
+end

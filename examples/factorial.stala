@@ -1,0 +1,17 @@
+include "stdlib.stala"
+
+func main do
+	1 let i	
+	while 20 i != if
+		i print_int
+		"! = " print
+		i factorial print_int
+		"\n" print
+		i ++ let i
+	end
+end
+
+func factorial i do
+	i 1 = if 1 ret end
+	i -- factorial i *
+end

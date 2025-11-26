@@ -1,0 +1,18 @@
+include "stdlib.stala"
+
+func main do
+	0 let i	
+	while 30 i != if
+		i fibonacci print_int
+		"\n" print
+		i ++ let i
+	end
+end
+
+func fibonacci i do
+	i 0 = if 1 ret end
+	i 1 = if 1 ret end
+	i -- fibonacci
+	i 2 - fibonacci
+	+
+end

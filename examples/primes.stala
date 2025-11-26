@@ -1,0 +1,23 @@
+include "stdlib.stala"
+
+func main do
+	2 let i	
+	while 100 i != if
+		i is_prime if
+			i print_int
+			"\n" print
+		end
+		i ++ let i
+	end
+end
+
+func is_prime p do
+	2 let i
+	while i p < if
+		p i % 0 = if
+			false ret
+		end
+		i ++ let i
+	end
+	true
+end

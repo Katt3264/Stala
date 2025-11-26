@@ -10,16 +10,21 @@ public class Main {
 	
 	public static String input = "";
 	public static String output = "";
-	public static String sources = "../:../stdlib";
+	public static String sources = "../:../stdlib:stdlib";
 	
 	public static boolean run = false;
 	public static String[] progArgs = new String[0];
 	
 	public static void main(String[] args) throws FileNotFoundException
 	{
-		String progIn = "stala ../examples/syntax.stala -out ../outputs/output";
+		//String progIn = "stala ../examples/syntax.stala -out ../outputs/output";
+		//String progIn = "stala ../examples/helloworld.stala -out ../outputs/output";
+		//String progIn = "stala ../examples/0to99.stala -out ../outputs/output";
+		//String progIn = "stala ../examples/primes.stala -out ../outputs/output";
+		//String progIn = "stala ../examples/fibonacci.stala -out ../outputs/output";
+		//String progIn = "stala ../examples/factorial.stala -out ../outputs/output";
 		
-		args = progIn.split(" ");
+		//args = progIn.split(" ");
 		
 		for(int i = 0; i < args.length; i++)
 		{
@@ -54,7 +59,9 @@ public class Main {
 		
 		try {
 			CompilerMacOSx86_64.compile(prog);
-			CompilerMacOSx86_64.run();
+			
+			if(run)
+				CompilerMacOSx86_64.run();
 			
 		} catch (Exception e) {
 			e.printStackTrace();

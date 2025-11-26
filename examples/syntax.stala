@@ -4,6 +4,8 @@ func main to do
 
 	# push number to data stack and print it
 	123 print_int "\n" print
+	-123 print_int "\n" print
+	0xff print_int "\n" print
 	
 	# push string to data stack and print it
 	"hello world" println

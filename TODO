@@ -13,3 +13,8 @@ TODO:
 	- full error reporting and positioning
 	- label and label reference list
 
+
+Optimizations:
+	- remove unused functions from final assembly
+
+
