@@ -23,6 +23,8 @@ public class Main {
 		//String progIn = "stala ../examples/primes.stala -out ../outputs/output";
 		//String progIn = "stala ../examples/fibonacci.stala -out ../outputs/output";
 		//String progIn = "stala ../examples/factorial.stala -out ../outputs/output";
+		//String progIn = "stala ../examples/args.stala -out ../outputs/output";
+		//progArgs = new String[]{"arg1 arg2 arg3 arg4 arg5"};
 		
 		//args = progIn.split(" ");
 		

@@ -128,7 +128,12 @@ public class CompilerMacOSx86_64 {
 		out.println("mov [rel loc_stack_ptr], rax");
 		
 		out.println("mov rax, [rel org_rsp]");
-		printDataPush(out, "rax");
+		//printDataPush(out, "rax");
+		
+		printDataPush(out, "rdx"); // ENVP
+		printDataPush(out, "rdi"); // ARGC
+		printDataPush(out, "rsi"); // ARGV
+		
 		out.println("call " + program.main.functionMap.get("main").label);
 		out.println("_exit:");
 		out.println("mov rax, 0x2000001");	//TODO: OS agnostic exit

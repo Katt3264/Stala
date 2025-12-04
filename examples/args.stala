@@ -1,0 +1,21 @@
+include "stdlib.stala"
+
+func main envp argc argv do
+
+	"####ARGC####\n" print
+	argc print_int "\n" print
+
+	"####ARGV####\n" print
+	0 let c
+	while argv c 8 * + ?ptr 0 != if
+		argv c 8 * + ?ptr println
+		c 1 + let c
+	end
+
+	"####ENVP####\n" print
+	0 let c
+	while envp c 8 * + ?ptr 0 != if
+		envp c 8 * + ?ptr println
+		c 1 + let c
+	end
+end
