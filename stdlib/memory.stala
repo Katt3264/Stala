@@ -14,7 +14,7 @@ func malloc_type type bytes do
 	get_start_chunk let current_chunk
 	get_start_chunk let first_free_chunk
 	
-	while true if
+	while true do
 	
 		jumps ++ let jumps
 		

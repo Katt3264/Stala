@@ -236,7 +236,7 @@ public class Tokenizer implements Iterator<Token> {
 		
 		if(tok.equals("do"))
 		{
-			return TOKEN_TYPE.BLOCK_START;
+			return TOKEN_TYPE.DO;
 		}
 		
 		if(tok.equals("end"))

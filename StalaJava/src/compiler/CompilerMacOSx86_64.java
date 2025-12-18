@@ -287,6 +287,15 @@ public class CompilerMacOSx86_64 {
 				String toLable = token.label + ":";
 				out.println(toLable);
 			}
+			else if(type == TOKEN_TYPE.DO)
+			{
+				out.println(";; do");
+				printDataPop(out, "rax");
+				out.println("test rax, rax");
+				Token toToken = token.conditionalNext;
+				String toLable = toToken.label;
+				out.println("jz " + toLable);
+			}
 			else if(type == TOKEN_TYPE.RETURN)
 			{
 				out.println(";; return");

@@ -1,11 +1,3 @@
-include "stdlib/stdlibi.stala"
-
 func main do
-	
-	while if 
-	
-		
-	
-	end
-
+	1 1 +
 end

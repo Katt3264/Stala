@@ -1,7 +1,7 @@
 # string manipulation
 
 func strcpy dst src do
-	while true if
+	while true do
 		src ?8 let ch
 		dst ch !8
 		ch 0 = if ret end
@@ -25,14 +25,14 @@ end
 
 func strlen str do
 	0 let i
-	while str i + ?8 0 != if
+	while str i + ?8 0 != do
 		i 1 + let i
 	end
 	i ret
 end
 
 func strchr str chr do
-	while true if
+	while true do
 		str ?8 let c
 		c chr = if str ret end
 		c 0 = if null ret end
@@ -42,7 +42,7 @@ end
 
 func strstr str substr do
 	substr strlen let len
-	while true if
+	while true do
 		str ?8 0 = if null ret end
 		str substr len strncmp 0 = if str ret end
 		str ++ let str
@@ -55,7 +55,7 @@ end
 
 # str str - int
 func strcmp str1 str2 do
-	while true if
+	while true do
 		str1 ?8 let ch1
 		str2 ?8 let ch2
 		
@@ -72,7 +72,7 @@ func strcmp str1 str2 do
 end
 
 func strncmp str1 str2 len do
-	while true if
+	while true do
 		str1 ?8 let ch1
 		str2 ?8 let ch2
 		
@@ -95,7 +95,7 @@ end
 # memory functions
 
 func memcpy src dst len do
-	while len 0 != len -- let len if
+	while len 0 != len -- let len do
 		src ?8 let char
 		dst char !8
 		src ++ let src
@@ -132,7 +132,7 @@ func try_str_to_int str base do
 	str ?8 0 = if false 0 ret end
 	
 	
-	while str ?8 0 != if
+	while str ?8 0 != do
 	
 		str ?8 let char
 		
@@ -196,7 +196,7 @@ func int_to_str dst val base do
 	dst let ptr
 	"0123456789abcdef" let num_to_char
 	
-	while val 0 != if
+	while val 0 != do
 		val base % let remainder
 		val base / let val
 		ptr num_to_char remainder + ?8 !8
@@ -207,7 +207,7 @@ func int_to_str dst val base do
 	ptr 0 !8
 	ptr -- let ptr
 	
-	while ptr dst > if
+	while ptr dst > do
 		ptr ?8 let v1
 		dst ?8 let v2
 		

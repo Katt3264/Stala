@@ -2,10 +2,12 @@
 
 Bugs:
 	- variable stack never uses the first element
-	- if statements in while conditions is not possible - replace with "do"?
 
-	
+
 TODO:
+	- complete interpreter.stala
+	- run argument
+	- arg arguments
 	- buffer defines
 	- global variables (let outside function)
 	- strings

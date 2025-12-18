@@ -41,7 +41,7 @@ end
 
 func file_read_line fd buffer length do
 	
-	while true if
+	while true do
 		
 		fd file_read_char let char
 		buffer 0 !8

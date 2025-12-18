@@ -14,7 +14,7 @@ public enum TOKEN_TYPE {
 	IF,
 	ELIF,
 	ELSE,
-	BLOCK_START,
+	DO,
 	BLOCK_END,
 	RETURN,
 	

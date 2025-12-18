@@ -39,7 +39,7 @@ public class Function {
 		
 		token = tokenIter.next();
 		
-		while(token.type != TOKEN_TYPE.BLOCK_START)
+		while(token.type != TOKEN_TYPE.DO)
 		{
 			if(token.type != TOKEN_TYPE.IDENTIFIER)
 				Logger.failToken("expects " + TOKEN_TYPE.IDENTIFIER + " as function argument", token);
@@ -58,7 +58,7 @@ public class Function {
 		}
 		
 		if(!tokenIter.hasNext())
-			Logger.failToken("ran out of tokens after parsing " + TOKEN_TYPE.BLOCK_START, token);
+			Logger.failToken("ran out of tokens after parsing " + TOKEN_TYPE.DO, token);
 		
 		token = tokenIter.next();
 		
@@ -126,14 +126,22 @@ public class Function {
 				chain.add(token);
 				blockStack.push(chain);
 			}
+			else if(type == TOKEN_TYPE.DO)
+			{
+				if(blockStack.size() == 0)
+					Logger.failToken("no: " + TOKEN_TYPE.WHILE + " found before :" + TOKEN_TYPE.DO, token);
+				
+				if(blockStack.peek().size() != 1)
+					Logger.failToken("invalid chain size: " + blockStack.peek().size() + " expected: 1", token);
+				
+				if(blockStack.peek().get(0).type != TOKEN_TYPE.WHILE)
+					Logger.failToken("invalid chain: " + token.type + " " + TOKEN_TYPE.DO + " expected: " + TOKEN_TYPE.WHILE + " " + TOKEN_TYPE.DO, token);
+				
+				blockStack.peek().add(token);
+			}
 			else if(type == TOKEN_TYPE.IF)
 			{
 				List<Token> chain = new ArrayList<Token>();
-				if(blockStack.size() != 0)
-					if(blockStack.peek().size() == 1)
-						if(blockStack.peek().get(0).type == TOKEN_TYPE.WHILE)
-							chain = blockStack.pop();
-				
 				chain.add(token);
 				blockStack.push(chain);
 			}
@@ -181,7 +189,7 @@ public class Function {
 					{
 						if(chain.size() == 2)
 						{
-							if(chain.get(1).type == TOKEN_TYPE.IF)
+							if(chain.get(1).type == TOKEN_TYPE.DO)
 							{
 								chain.get(1).conditionalNext = token;
 								token.conditionalNext = chain.get(0);
@@ -190,7 +198,7 @@ public class Function {
 								throw new RuntimeException("invalid chain sequence");
 						}
 						else
-							Logger.failToken(TOKEN_TYPE.WHILE + " must be followed by " + TOKEN_TYPE.IF, token);
+							Logger.failToken("unexpected: " + TOKEN_TYPE.BLOCK_END + " after: " + TOKEN_TYPE.WHILE, token);
 					}
 					else
 					{

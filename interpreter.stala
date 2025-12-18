@@ -10,7 +10,7 @@ func interpret path do
 	path try_open_file let fd
 	
 	true let reading
-	while reading true = if
+	while reading true = do
 		fd line_buffer 255 file_read_line
 		line_buffer println
 		
@@ -31,7 +31,7 @@ func interpret path do
 	0 let data_stack_ptr
 	
 	true let running
-	while running instruction_ptr lines list_get_size < AND if
+	while running instruction_ptr lines list_get_size < AND do
 		
 		lines instruction_ptr list_get_index let current_instruction
 		
@@ -329,7 +329,7 @@ end
 func print_stack stack length do
 
 	0 let index
-	while index length != if
+	while index length != do
 		stack index sizeof(ptr) * + ?ptr let value
 		"[" print
 		value print_int

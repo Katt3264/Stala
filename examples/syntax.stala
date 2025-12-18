@@ -78,7 +78,7 @@ func main to do
 	# while loop
 	"--while loop--" println
 	4 let c
-	while c 0 != if
+	while c 0 != do
 		"while loop" println
 		c -- let c
 	end

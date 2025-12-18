@@ -1,4 +1,5 @@
 include "stdlib.stala"
+include "interpreter.stala"
 
 func main do
 
@@ -7,11 +8,11 @@ func main do
 	
 	output_file out_file !ptr
 	
-	"compiler/comtest.stala" parse
+	"comtest.stala" parse
 	
 	out_file close_file
 	
-	#"outputs/tmpfile" interpret
+	"outputs/tmpfile" interpret
 	
 	"END OF MAIN" println
 end
@@ -107,7 +108,7 @@ func out_while block do
 	"\n" out_asm
 end
 
-func out_while_if block do
+func out_while_do block do
 	"jz end:" out_asm
 	"01234567" dup block block_get_block_index 10 int_to_str out_asm
 	"\n" out_asm
@@ -123,7 +124,7 @@ func out_end_while block do
 end
 
 func string_list_search list length str do
-	while length 0 != if
+	while length 0 != do
 		list length -- sizeof(ptr) * + ?ptr str streq if
 			length -- ret
 		end
@@ -143,7 +144,7 @@ func block_get_block_type block            do block 2            array_get_index
 func block_set_block_type block block_type do block 2 block_type array_set_index end
 
 func block_type_while    do "while" end
-func block_type_while_if do "while if" end
+func block_type_while_do do "while do" end
 func block_type_if       do "if" end
 func block_type_elif     do "elif" end
 func block_type_else     do "else" end
@@ -191,7 +192,7 @@ func parse path do
 	
 	# main token loop
 	true let parsing_tokens
-	while parsing_tokens if
+	while parsing_tokens do
 	
 		token_string 0 !8
 		status_tokenize_spacers let lexer_status
@@ -201,12 +202,12 @@ func parse path do
 		
 		#build token
 		true let lexing_token
-		while lexing_token if
+		while lexing_token do
 		
 			input_file file_read_char let char
 		
 			lexer_status status_tokenize_spacers = if
-			
+
 				spacers char strchr null != if
 					# do nothing
 					status_tokenize_spacers let lexer_status
@@ -404,7 +405,7 @@ func parse path do
 		
 		else parser_status status_parse_function_name = elif
 			
-			token_is_identifier != if
+			token_is_identifier if
 				# the name of the function
 				function_string token_string strcpy
 				token_string out_function_start
@@ -431,7 +432,7 @@ func parse path do
 				function_locals let tmp_ptr1
 				function_locals function_locals_length -- sizeof(ptr) * + let tmp_ptr2
 				
-				while tmp_ptr2 tmp_ptr1 > if
+				while tmp_ptr2 tmp_ptr1 > do
 					tmp_ptr1 ?ptr let tmp_v1
 					tmp_ptr2 ?ptr let tmp_v2
 					tmp_ptr1 tmp_v2 !ptr
@@ -471,33 +472,31 @@ func parse path do
 				nblock block_type_while block_set_block_type
 				block_stack nblock list_push
 				nblock out_while
+			
+			else token_string "do" streq elif
+				# conditional jump to next sub block
+				#-jz end[block]
 				
+				# check if this is a while - if
+				block_stack list_get_size 0 != if
+					block_stack list_peek let nblock
+					nblock block_get_block_type block_type_while = if
+						nblock block_type_while_do block_set_block_type
+						nblock out_while_do
+					end
+				end
+	
 			else token_string "if" streq elif
 				# conditional jump to next sub block
 				#-jz label block[block]:[sub block + 1]
 				
-				# check if this is a while - if
-				false let if_is_while_if
-				block_stack list_get_size 0 != if
-					block_stack list_peek let nblock
-					nblock block_get_block_type block_type_while = if
-						nblock block_type_while_if block_set_block_type
-						nblock out_while_if
-						true let if_is_while_if
-					end
-				end
-				
-				# if is if
-				if_is_while_if false = if
-					new_block let nblock
-					nblock block_index block_set_block_index
-					block_index ++ let block_index
-					nblock 0 block_set_block_sub_index
-					nblock block_type_if block_set_block_type
-					block_stack nblock list_push
-					nblock out_if
-				end
-				
+				new_block let nblock
+				nblock block_index block_set_block_index
+				block_index ++ let block_index
+				nblock 0 block_set_block_sub_index
+				nblock block_type_if block_set_block_type
+				block_stack nblock list_push
+				nblock out_if
 		
 			else token_string "elif" streq elif
 				# conditional jump to next sub block
@@ -547,7 +546,7 @@ func parse path do
 					nblock block_get_block_type block_type_while = if
 						"end can not come after while" error fail
 						
-					else nblock block_get_block_type block_type_while_if = elif
+					else nblock block_get_block_type block_type_while_do = elif
 						nblock out_end_while
 						
 					else nblock block_get_block_type block_type_if = 
