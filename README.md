@@ -110,7 +110,7 @@ end
 
 ### While loop
 ```
-while condition if
+while condition do
   # code to run while condition is true
 end
 ```
