@@ -1,25 +1,25 @@
 func syscall1 num do
-	num 0 0 0 0 0 0 syscall7 ret
+	num 0 0 0 0 0 0 syscall7
 end
 
 func syscall2 num arg1 do
-	num arg1 0 0 0 0 0 syscall7 ret
+	num arg1 0 0 0 0 0 syscall7
 end
 
 func syscall3 num arg1 arg2 do
-	num arg1 arg2 0 0 0 0 syscall7 ret
+	num arg1 arg2 0 0 0 0 syscall7
 end
 
 func syscall4 num arg1 arg2 arg3 do
-	num arg1 arg2 arg3 0 0 0 syscall7 ret
+	num arg1 arg2 arg3 0 0 0 syscall7
 end
 
 func syscall5 num arg1 arg2 arg3 arg4 do
-	num arg1 arg2 arg3 arg4 0 0 syscall7 ret
+	num arg1 arg2 arg3 arg4 0 0 syscall7
 end
 
 func syscall6 num arg1 arg2 arg3 arg4 arg5 do
-	num arg1 arg2 arg3 arg4 arg5 0 syscall7 ret
+	num arg1 arg2 arg3 arg4 arg5 0 syscall7
 end
 
 
@@ -36,7 +36,7 @@ end
 # WRONG pid - child process pid returned in parent, 0 returned in child, -1 on error
 #
 func fork do
-	0x2000002 syscall1 ret
+	0x2000002 syscall1
 end
 
 #
@@ -47,7 +47,7 @@ end
 # len - number of bytes read or -1 on error
 #
 func read fd buf len do
-	0x2000003 fd buf len syscall4 ret
+	0x2000003 fd buf len syscall4
 end
 
 #
@@ -58,7 +58,7 @@ end
 # len - number of bytes written, -1 on error
 #
 func write fd buf len do
-	0x2000004 fd buf len syscall4 ret
+	0x2000004 fd buf len syscall4
 end
 
 #
@@ -70,7 +70,7 @@ end
 # TODO: 2 is returned if file does not exist???
 #
 func open path flags mode do
-	0x2000005 path flags mode syscall4 ret
+	0x2000005 path flags mode syscall4
 end
 
 #
@@ -79,7 +79,7 @@ end
 # status - 0 on success, -1 on error
 #
 func close fd do
-	0x2000006 fd syscall2 ret
+	0x2000006 fd syscall2
 end
 
 #
@@ -88,21 +88,21 @@ end
 # 
 #
 func unlink path do
-	0x2000000 10 + path syscall2 ret
+	0x2000000 10 + path syscall2
 end
 
 #
 # pid - the process id of this process
 #
 func getpid do
-	0x2000000 20 + syscall1 ret
+	0x2000000 20 + syscall1
 end
 
 #
 # pid - the process id of the parent process
 #
 func getppid do
-	0x2000000 39 + syscall1 ret
+	0x2000000 39 + syscall1
 end
 
 #
@@ -113,7 +113,7 @@ end
 # status - 0 on success, -1 on error
 #
 func ioctl fd op argp do
-	0x2000000 54 + fd op argp syscall4 ret
+	0x2000000 54 + fd op argp syscall4
 end
 
 #
@@ -124,7 +124,7 @@ end
 # status - no return on success, -1 on error
 #
 func execve path argv envp do
-	0x2000000 59 + path argv envp syscall4 ret
+	0x2000000 59 + path argv envp syscall4
 end
 
 

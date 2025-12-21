@@ -127,7 +127,7 @@ public class CompilerMacOSx86_64 {
 		out.println("lea rax, [rel loc_stack]");
 		out.println("mov [rel loc_stack_ptr], rax");
 		
-		out.println("mov rax, [rel org_rsp]");
+		//out.println("mov rax, [rel org_rsp]");
 		//printDataPush(out, "rax");
 		
 		printDataPush(out, "rdx"); // ENVP
@@ -322,8 +322,8 @@ public class CompilerMacOSx86_64 {
 					int index = f.locals.indexOf(value);
 					
 					out.println(";; push local");
-					out.println("mov rax, [rel loc_stack_ptr]");
-					out.println("mov rax, [rax - " + (index * 8) + "]");
+					out.println("mov rbx, [rel loc_stack_ptr]");
+					out.println("mov rax, [rbx - " + (index * 8) + "]");
 					printDataPush(out, "rax");
 				}
 				// Is a file local function

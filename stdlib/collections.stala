@@ -34,7 +34,7 @@ func list_get_size list do
 	list 0 array_get_index
 end
 
-func list_add do list_push end
+func list_add list value do list value list_push end
 
 func list_push list value do
 	list list_get_size let list_size

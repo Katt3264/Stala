@@ -1,4 +1,6 @@
 
+func print_input_enable do false end
+
 
 func interpret path do
 	
@@ -12,13 +14,14 @@ func interpret path do
 	true let reading
 	while reading true = do
 		fd line_buffer 255 file_read_line
-		line_buffer println
+		
+		print_input_enable  if line_buffer println end
 		
 		line_buffer strlen 0 = if
 			false let reading
 		else
 			line_buffer strlen ++ malloc let tmp_line_buffer
-			tmp_line_buffer line_buffer strcpy
+			line_buffer tmp_line_buffer strcpy
 			lines tmp_line_buffer list_add
 		end
 		
@@ -48,6 +51,15 @@ func interpret path do
 			data_stack_ptr ++ let data_stack_ptr
 			
 			"[PUSH] " print
+			value print_int
+			"" println
+		
+		else current_instruction "push_label " strstr current_instruction = elif
+			# push label
+			current_instruction "push_label " strlen + let value
+			#TODO: push label --------------------------------
+			
+			"[PUSH LABEL] " print
 			value print_int
 			"" println
 		
