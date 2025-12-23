@@ -1,20 +1,27 @@
 include "stdlib/stdlib.stala"
 
-func main do
+func main args do
 
-	"outputs/tmpfile.asm" remove_file
-	"outputs/tmpfile.asm" create_and_open_file let out_file
+	args sizeof(ptr) + let args # first argument is the name of the compiler
+
+	args ?ptr let input_file_path
+	input_file_path try_open_file let input_file
+	args sizeof(ptr) + let args
+
+	args sizeof(ptr) + let args # should be -out
+
+	args ?ptr let output_file_path
+	# output_file_path remove_file --------------------- TODO:fix
+	output_file_path create_and_open_file let out_file
+	args sizeof(ptr) + let args
 	
 	output_file out_file !ptr
 	
-	out_section_code
-	"comtest.stala" parse
+	input_file parse
 	
+	input_file close_file
 	out_file close_file
-	
-	"END OF MAIN" println
 end
-
 
 func output_file do "01234567" end
 
@@ -29,6 +36,9 @@ func bytes_per_register do 8 end
 
 func out_asm str do
 	print_output_enabled if str print end
+
+	output_file ?ptr -1 = if ret end
+
 	output_file ?ptr str file_write_string
 end
 
@@ -48,7 +58,7 @@ func out_reg_pop reg do
 	"mov " out_asm reg out_asm ", [rbp]\n" out_asm
 end
 
-func out_section_code do
+func out_section_code main_function_index do
 	"global _main\n" out_asm
 	"section .text\n" out_asm
 	"\n" out_asm
@@ -69,9 +79,7 @@ func out_section_code do
 	"rdi" out_reg_push
 	"rsi" out_reg_push
 
-	#TODO: call the main function
-	"call func_main\n" out_asm
-
+	main_function_index out_call_function
 
 	"_exit:\n" out_asm
 	"mov rax, 0x2000001\n" out_asm
@@ -112,10 +120,9 @@ func out_section_end do
 	"\n" out_asm
 end
 
-func out_function_start str do
-	#TODO: get function index
+func out_function_start index do
 	"\n" out_asm
-	"func_" out_asm str out_asm ":\n" out_asm
+	"func_" out_asm index out_asm_number ":\n" out_asm
 end
 
 func out_pop_local index do
@@ -168,10 +175,9 @@ func out_define_string string_index string do
 	"0\n" out_asm
 end
 
-func out_call_function str do
-	#TODO: get function index
+func out_call_function index do
 	print_comments_enabled if ";; function call\n" out_asm  end
-	"call func_" out_asm str out_asm "\n" out_asm
+	"call func_" out_asm index out_asm_number "\n" out_asm
 end
 
 func out_return do
@@ -179,65 +185,59 @@ func out_return do
 	"ret\n" out_asm
 end
 
-func out_if block do #TODO: implement
-	"jz block:" out_asm
+func out_if block do
+	"rax" out_reg_pop
+	"test rax, rax\n" out_asm
+	"jz block_" out_asm
 	block block_get_block_index out_asm_number
-	":" out_asm
+	"_" out_asm
 	block block_get_block_sub_index ++ out_asm_number
 	"\n" out_asm
 end
 
-func out_else block do #TODO: implement
-	"jmp end:" out_asm
+func out_else block do
+	"jmp end_" out_asm
 	block block_get_block_index out_asm_number
 	"\n" out_asm
-	"label block:" out_asm
+	"block_" out_asm
 	block block_get_block_index out_asm_number
-	":" out_asm
+	"_" out_asm
 	block block_get_block_sub_index out_asm_number
-	"\n" out_asm
+	":\n" out_asm
 end
 
-func out_end_if block do #TODO: implement
-	"label block:" out_asm
+func out_end_if block do
+	"block_" out_asm
 	block block_get_block_index out_asm_number
-	":" out_asm
+	"_" out_asm
 	block block_get_block_sub_index out_asm_number
-	"\n" out_asm
-	"label end:" out_asm
+	":\n" out_asm
+	"end_" out_asm
+	block block_get_block_index out_asm_number
+	":\n" out_asm
+end
+
+func out_while block do
+	"while_" out_asm
+	block block_get_block_index out_asm_number
+	":\n" out_asm
+end
+
+func out_while_do block do
+	"rax" out_reg_pop
+	"test rax, rax\n" out_asm
+	"jz end_" out_asm
 	block block_get_block_index out_asm_number
 	"\n" out_asm
 end
 
-func out_while block do #TODO: implement
-	"label while:" out_asm
+func out_end_while block do
+	"jmp while_" out_asm
 	block block_get_block_index out_asm_number
 	"\n" out_asm
-end
-
-func out_while_do block do #TODO: implement
-	"jz end:" out_asm
+	"end_" out_asm
 	block block_get_block_index out_asm_number
-	"\n" out_asm
-end
-
-func out_end_while block do #TODO: implement
-	"jmp while:" out_asm
-	block block_get_block_index out_asm_number
-	"\n" out_asm
-	"label end:" out_asm
-	block block_get_block_index out_asm_number
-	"\n" out_asm
-end
-
-func string_list_search list length str do
-	while length 0 != do
-		list length -- sizeof(ptr) * + ?ptr str streq if
-			length -- ret
-		end
-		length -- let length
-	end
-	-1 ret
+	":\n" out_asm
 end
 
 func new_block do 4 new_array end
@@ -272,22 +272,17 @@ func status_parse_after_let do 1006 end
 func status_parse_include do 1007 end
 
 
-func parse path do
-	
-	path try_open_file let input_file
+func parse input_file do
 	
 	" \t\n" let spacers
 	"0123456789" let number_chars
 	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_+-*<=>(){}[]?!:/%" let token_first_chars
 	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/%" let token_chars
-	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/% #.," let string_chars
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/% #.:,;" let string_chars
 	"nt\\\"" let escaped_chars
 	
 	1024 malloc let token_string
-	
 	1024 malloc let function_string
-	4096 malloc let function_locals
-	0 let function_locals_length
 	
 	1024 new_list let block_stack
 	0 let block_index 
@@ -296,7 +291,11 @@ func parse path do
 	0 let include_list_length
 
 	4096 new_list let string_list
+	4096 new_list let function_list
+	4096 new_list let locals_list
 	
+	function_list "main" list_force_get_index_of_string out_section_code
+
 	status_parse_source let parser_status
 	
 	# main token loop
@@ -339,7 +338,7 @@ func parse path do
 					token_string char strcatchr
 					status_tokenize_token let lexer_status
 					
-				#else char "-" ?8 = elif
+				#else char "-" ?8 = elif #TODO improve
 				#	# negative number
 				#	true let token_is_number
 				#	token_string char strcatchr
@@ -454,7 +453,7 @@ func parse path do
 		parser_status status_parse_source = if
 			
 			token_string "func" streq if
-				0 let function_locals_length
+				locals_list list_clear
 				status_parse_function_name let parser_status
 			
 			else token_string "include" streq elif
@@ -516,9 +515,8 @@ func parse path do
 			
 			token_is_identifier if
 				# the name of the function
-				# TODO add to function index
 				token_string function_string strcpy
-				token_string out_function_start
+				function_list function_string list_force_get_index_of_string out_function_start
 				status_parse_function_args let parser_status
 			
 			else token_string strlen 0 = elif
@@ -536,28 +534,15 @@ func parse path do
 			
 			token_string "do" streq if
 				# end of function argument declaration
+				# reverse order of arguments
+				locals_list list_reverse
 				status_parse_function_body let parser_status
-				
-				#reverse order of arguments
-				function_locals let tmp_ptr1
-				function_locals function_locals_length -- sizeof(ptr) * + let tmp_ptr2
-				
-				while tmp_ptr2 tmp_ptr1 > do
-					tmp_ptr1 ?ptr let tmp_v1
-					tmp_ptr2 ?ptr let tmp_v2
-					tmp_ptr1 tmp_v2 !ptr
-					tmp_ptr2 tmp_v1 !ptr
-					tmp_ptr1 sizeof(ptr) + let tmp_ptr1
-					tmp_ptr2 sizeof(ptr) - let tmp_ptr2
-				end
 				
 			else token_is_identifier elif
 				# function argument identifier
-				function_locals_length out_pop_local
-				token_string strlen ++ malloc let local_variable_string
-				token_string local_variable_string strcpy
-				function_locals function_locals_length sizeof(ptr) * + local_variable_string !ptr
-				function_locals_length ++ let function_locals_length
+				
+				# add local variable to list
+				locals_list token_string list_force_get_index_of_string out_pop_local
 				status_parse_function_args let parser_status
 			
 			else token_string strlen 0 = elif
@@ -685,20 +670,24 @@ func parse path do
 				# token_string 10 str_to_int out_push_value
 				token_string out_push_value
 				
+			else token_string "-1" streq elif #TODO:improve, quick fix for negative number -1
+				# number to push
+				# token_string 10 str_to_int out_push_value
+				token_string out_push_value
+			
 			else token_is_identifier elif 
 				# identifier is a local variable or function call
-				function_locals function_locals_length token_string string_list_search let local_index
-				
+
+				locals_list token_string list_get_index_of_string let local_index
 				local_index -1 != if
 					# identifier is a local variable
 					local_index out_push_local
 					
 				else
 					# identifier is a function
-					# TODO: get/add the function index
-					function_locals_length out_inc_local
-					token_string out_call_function
-					function_locals_length out_dec_local
+					locals_list list_get_size out_inc_local
+					function_list token_string list_force_get_index_of_string out_call_function
+					locals_list list_get_size out_dec_local
 				end
 				
 			else token_is_string elif
@@ -744,21 +733,7 @@ func parse path do
 			
 			token_is_identifier if
 				# local variable identifier
-				function_locals function_locals_length token_string string_list_search let local_index
-				
-				local_index -1 = if
-					# local variable is not already defined
-					function_locals_length out_pop_local
-					token_string strlen ++ malloc let local_variable_string
-					token_string local_variable_string strcpy
-					function_locals function_locals_length sizeof(ptr) * + local_variable_string !ptr
-					function_locals_length ++ let function_locals_length
-				
-				else
-					# local variable is already defined
-					local_index out_pop_local
-				end
-
+				locals_list token_string list_force_get_index_of_string out_pop_local
 				status_parse_function_body let parser_status
 				
 			else token_string strlen 0 = elif

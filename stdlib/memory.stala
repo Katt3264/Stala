@@ -15,8 +15,6 @@ func malloc_type type bytes do
 	get_start_chunk let first_free_chunk
 	
 	while true do
-	
-		jumps ++ let jumps
 		
 		current_chunk get_end_chunk >= if
 			"malloc out of memory" error fail

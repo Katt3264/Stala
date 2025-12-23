@@ -2,14 +2,16 @@
 
 Bugs:
 	- variable stack never uses the first element in StalaJava
+	- number parsing can not handle negative numbers
 
 
 TODO:
-	- function name to function index
+	- abstract out jmp, jz, label:
+	- function names in comments
+	- local variable names in comments
 	- full error reporting and positioning
-	- run argument
-	- arg arguments
 	- escapement of asm string
+	- disable comments output for StalaJava
 
 
 Possible next steps:
@@ -19,5 +21,6 @@ Possible next steps:
 
 Optimizations:
 	- remove unused functions from final assembly
+	- debloat output .asm 
 
 

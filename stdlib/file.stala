@@ -8,7 +8,14 @@ func create_and_open_file path do
 	# 01000 - o_create
 	# 00100 - o_trunc
 	# 00002 - read write
-	path 01102 0644 open
+	# path 01102 0644 open let status IMPORTANT OCTAL NOT SUPPORTED
+	path 0x242 0x1A4 open let status
+
+	status -1 = if
+		"error creating and opening file: " error path error fail
+	end
+	
+	status
 end
 
 #
@@ -18,17 +25,30 @@ func try_open_file path do
 	# 01000 - o_create
 	# 00100 - o_trunc
 	# 00003 - read write
-	path 2 0 open
+	# IMPORTANT OCTAL NOT SUPPORTED
+	path 2 0 open let status
+
+	status -1 = if
+		"error opening file: " error path error fail
+	end
+	
+	status
 end
 
 #
 #
 # [path] -> [status]
 func remove_file path do
-	path unlink
+	path unlink let status
+
+	status -1 = if
+		"error removing file: " error path error
+	end
+	
+	status
 end
 
-func exists_file path do
+func exists_file path do # TODO: implement
 
 end
 
@@ -36,7 +56,13 @@ end
 #
 # [fd] -> [status]
 func close_file fd do
-	fd close
+	fd close let status
+
+	status -1 = if
+		"error closing fd " error
+	end
+	
+	status
 end
 
 func file_read_line fd buffer length do

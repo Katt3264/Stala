@@ -196,6 +196,10 @@ public class Tokenizer implements Iterator<Token> {
 	{
 		try {
 			Long.decode(tok);
+			
+			if(tok.matches("0[0-7]+"))
+				Logger.failTokenize("Octal numbers are not supported: " + tok, sourceName, row, col);
+			
 			return TOKEN_TYPE.NUMBER;
 		} catch(NumberFormatException e) {};
 		

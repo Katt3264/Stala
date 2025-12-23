@@ -23,10 +23,10 @@ public class CompilerMacOSx86_64 {
 	public static void compile(Program program) throws IOException
 	{
 		String cmd[] = new String[] {
-				"/usr/local/bin/nasm -f macho64 " + Main.output + ".asm",
+				/*"/usr/local/bin/nasm -f macho64 " + Main.output + ".asm",
 				"ld -macosx_version_min 11.0 -L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem -o " 
 				+ Main.output + " " + Main.output + ".o",
-				"chmod +x " + Main.output,
+				"chmod +x " + Main.output,*/
 		};
 		
 		try {
