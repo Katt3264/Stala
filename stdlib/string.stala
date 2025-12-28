@@ -1,6 +1,6 @@
 # string manipulation
 
-func strcpy src dst do
+func strcpy dst src do
 	while true do
 		src ?8 let ch
 		dst ch !8
@@ -12,7 +12,7 @@ end
 
 func strcat dst src do
 	dst dst strlen + let dst
-	src dst strcpy
+	dst src strcpy
 end
 
 func strcatchr dst char do
@@ -104,39 +104,6 @@ func memcpy src dst len do
 end
 
 # convertion
-
-func str_unescape src dst do
-	# ignore first "
-	src ++ let src 
-	while src ?8 0 != do
-		src ?8 let char
-		char "\"" ?8 = if
-			# must be end of string
-			dst 0 !8
-		else char "\\" ?8 = elif
-			src ++ let src
-			src ?8 let char
-
-			char "\\" ?8 = if
-				dst "\\" ?8 !8
-			else char "\"" ?8 = elif
-				dst "\"" ?8 !8
-			else char "n" ?8 = elif
-				dst "\n" ?8 !8
-			else char "t" ?8 = elif
-				dst "\t" ?8 !8
-			else
-				"invalid escape character" error fail
-			end
-			dst ++ let dst
-		else
-			dst char !8
-			dst ++ let dst
-		end
-		src ++ let src
-	end
-end
-
 
 func is_str_int str base do
 	str base try_str_to_int let val let status
