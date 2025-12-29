@@ -39,7 +39,7 @@ func new_list do
 	2 new_array let list			# size of list struct
 	size new_array let list_array
 	list 0 list_set_size			# set size of list to 0
-	list list_array list_set_array	# set pointer to array
+	list list_array list_set_array		# set pointer to array
 	list
 end
 
