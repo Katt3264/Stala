@@ -1,4 +1,5 @@
 func fail do
+	"fail\n" eprintln
 	10000000 while dup 0 != do -- end
 	-1 exit
 end

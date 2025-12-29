@@ -10,11 +10,6 @@ func create_and_open_file path do
 	# 00002 - read write
 	# path 01102 0644 open let status IMPORTANT OCTAL NOT SUPPORTED
 	path 0x242 0x1A4 open let status
-
-	status -1 = if
-		"error creating and opening file: " error path error fail
-	end
-	
 	status
 end
 
@@ -27,11 +22,6 @@ func try_open_file path do
 	# 00003 - read write
 	# IMPORTANT OCTAL NOT SUPPORTED
 	path 2 0 open let status
-
-	status -1 = if
-		"error opening file: " error path error fail
-	end
-	
 	status
 end
 
@@ -40,11 +30,6 @@ end
 # [path] -> [status]
 func remove_file path do
 	path unlink let status
-
-	status -1 = if
-		"error removing file: " error path error
-	end
-	
 	status
 end
 
@@ -57,11 +42,6 @@ end
 # [fd] -> [status]
 func close_file fd do
 	fd close let status
-
-	status -1 = if
-		"error closing fd " error
-	end
-	
 	status
 end
 

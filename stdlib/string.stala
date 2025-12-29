@@ -10,6 +10,12 @@ func strcpy dst src do
 	end
 end
 
+func strdup str do
+	str strlen ++ malloc let dst
+	dst str strcpy
+	dst
+end
+
 func strcat dst src do
 	dst dst strlen + let dst
 	dst src strcpy

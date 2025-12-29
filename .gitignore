@@ -2,3 +2,6 @@
 /unused
 /outputs/
 /bootstrap
+run.sh
+bootstrap.asm
+bootstrap.sh

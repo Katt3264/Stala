@@ -31,10 +31,15 @@ end
 #
 # LIST
 #
+# [size, ptr]
+#
 
-func new_list size do
-	size ++ new_array let list
-	list 0 0 array_set_index
+func new_list do
+	2 let size 				# default list size
+	2 new_array let list			# size of list struct
+	size new_array let list_array
+	list 0 list_set_size			# set size of list to 0
+	list list_array list_set_array	# set pointer to array
 	list
 end
 
@@ -42,49 +47,63 @@ func list_get_size list do
 	list 0 array_get_index
 end
 
+func list_set_size list size do
+	list 0 size array_set_index
+end
+
+func list_get_array list do
+	list 1 array_get_index
+end
+
+func list_set_array list array do
+	list 1 array array_set_index
+end
+
 func list_clear list do
-	list 0 0 array_set_index
+	list 0 list_set_size
 end
 
 func list_add list value do list value list_push end
 
 func list_push list value do
-	list list_get_size let list_size
-	list array_get_size let array_size
-	list_size -- array_size >= if "list index out of bounds" error fail end
-	list list_size ++ value array_set_index
-	list 0 list_size ++ array_set_index
+	# check if capacity is reached
+	list list_get_size list list_get_array array_get_size = if
+		
+		list list_get_array let old_list_array
+		old_list_array array_get_size 2 * new_array let new_list_array
+		0 let i
+		while i old_list_array array_get_size != do
+			old_list_array i array_get_index let tmp_value
+			new_list_array i tmp_value array_set_index
+			i ++ let i
+		end		
+		list new_list_array list_set_array
+	end
+	list list_get_array list list_get_size value array_set_index
+	list list list_get_size ++ list_set_size
 end
 
 func list_get_index list index do
-	list list_get_size let list_size
-	index list_size >= if "list index out of bounds" error fail end
+	index list list_get_size >= if "list index out of bounds" error fail end
 	index 0 < if "list index out of bounds" error fail end
-	list index ++ array_get_index
+	list list_get_array index array_get_index
 end
 
 func list_set_index list index value do
-	list list_get_size let list_size
-	index list_size >= if "list index out of bounds" error fail end
+	index list list_get_size >= if "list index out of bounds" error fail end
 	index 0 < if "list index out of bounds" error fail end
-	list index ++ value array_set_index
+	list list_get_array index value array_set_index
 end
 
 func list_pop list do
-	list list_get_size let list_size
-	list array_get_size let array_size
-	list_size 0 <= if "list index out of bounds" error fail end
-	list list_size array_get_index let value
-	list 0 list_size -- array_set_index
+	list list_peek let value
+	list list list_get_size -- list_set_size
 	value
 end
 
 func list_peek list do
-	list list_get_size let list_size
-	list array_get_size let array_size
-	list_size 0 <= if "list index out of bounds" error fail end
-	list list_size array_get_index let value
-	value
+	list list_get_size 0 = if "list index out of bounds" error fail end
+	list list list_get_size -- list_get_index
 end
 
 func list_reverse list do

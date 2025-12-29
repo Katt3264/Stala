@@ -1,50 +1,8 @@
 # x86 64 asm
 
-#func local_bottom do
-#	# move local bottom to rax
-#	asm "lea rax, [rel loc_stack]"
-#
-#	# push rax
-#	asm "mov [rbp], rax"
-#	asm "add rbp, 8"
-#end
-
-#func local_ptr do
-#	# move local bottom to rax
-#	asm "mov rax, [rel loc_stack_ptr]"
-#
-#	# push rax
-#	asm "mov [rbp], rax"
-#	asm "add rbp, 8"
-#end
-
-#func data_bottom do
-#	# move to rax
-#	asm "lea rax, [rel dat_stack]"
-#
-#	# push rax
-#	asm "mov [rbp], rax"
-#	asm "add rbp, 8"
-#end
-
-# ptr to top element of data stack
-#func data_ptr do
-#	# move to rax
-#	asm "mov rax, rbp"
-#
-#	# push rax
-#	asm "mov [rbp], rax"
-#	asm "add rbp, 8"
-#	8 -
-#end
-
 func mem_start do
-	# move mem to rax
 	asm "lea rax, [rel mem]"
-
-	# push rax
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
+	asm "call push_rax"
 end
 
 func sizeof(ptr) do
@@ -55,92 +13,52 @@ func null do 0 end
 
 func dup x do x x end
 
+func del x do end
+
 # addr value
-func !ptr do	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
+func !ptr do
+	asm "call pop_rbx"
+	asm "call pop_rax"
 	asm "mov [rax], rbx"
 end
 
 # addr
 func ?ptr do
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
+	asm "call pop_rax"
 	asm "mov rbx, [rax]"
-	
-	# push rbx
-	asm "mov [rbp], rbx"
-	asm "add rbp, 8"
+	asm "call push_rbx"
 end
 
 # addr value
 func !8 do	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
+	asm "call pop_rbx"
+	asm "call pop_rax"
 	asm "mov [rax], bl"
 end
 
 # addr
 func ?8 do
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
+	asm "call pop_rax"
 	asm "movzx rbx, byte [rax]"
-	
-	# push rbx
-	asm "mov [rbp], rbx"
-	asm "add rbp, 8"
+	asm "call push_rbx"
 end
 
-func + do	
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
+func + do
+	asm "call pop_rax"
+	asm "call pop_rbx"
 	asm "add rbx, rax"
-	
-	# push rbx
-	asm "mov [rbp], rbx"
-	asm "add rbp, 8"
+	asm "call push_rbx"
 end
 
 func ++ i do
 	i 1 +
 end
 
-func - do	
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
+func - do
+	asm "call pop_rax"
+	asm "call pop_rbx"
 	asm "sub rbx, rax"
-	
-	# push rbx
-	asm "mov [rbp], rbx"
-	asm "add rbp, 8"
+	asm "call push_rbx"
 end
 
 func -- i do
@@ -148,44 +66,20 @@ func -- i do
 end
 
 func * do
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
+	asm "call pop_rax"
+	asm "call pop_rbx"
 	asm "mul rbx"
-	
-	# push rax
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
+	asm "call push_rax"
 end
 
 # returns [a / b] [a % b]
 func DIVMOD do
-	
-	# pop rcx (divisor)
-	asm "sub rbp, 8"
-	asm "mov rcx, [rbp]"
-	
-	# pop rax (dividend)
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-
-	# sign extend rdx
-	asm "cqo"
-	
+	asm "call pop_rcx" # divisor
+	asm "call pop_rax" # dividend
+	asm "cqo" # sign extend rdx
 	asm "idiv rcx"
-	
-	# push rax (quotient)
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
-	
-	# push rdx (remainder)
-	asm "mov [rbp], rdx"
-	asm "add rbp, 8"
+	asm "call push_rax" # quotient
+	asm "call push_rdx" # remainder
 end
 
 func / do
@@ -199,19 +93,10 @@ func % do
 end
 
 func >> do
-	# pop rcx
-	asm "sub rbp, 8"
-	asm "mov rcx, [rbp]"
-	
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
+	asm "call pop_rcx"
+	asm "call pop_rax"
 	asm "shr rax, cl"
-	
-	# push rax
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
+	asm "call push_rax"
 end
 
 func << a b do
@@ -221,19 +106,10 @@ func << a b do
 end
 
 func AND do
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
+	asm "call pop_rax"
+	asm "call pop_rbx"
 	asm "and rax, rbx"
-	
-	# push rax
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
+	asm "call push_rax"
 end
 
 func OR a b do
@@ -249,15 +125,9 @@ func XOR a b do
 end
 
 func NOT do
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
+	asm "call pop_rax"
 	asm "not rax"
-	
-	# push rax
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
+	asm "call push_rax"
 end
 
 func true do 1 end
@@ -267,21 +137,11 @@ func false do 0 end
 func = do
 	asm "mov rcx, 0"
 	asm "mov rdx, 1"
-	
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
+	asm "call pop_rax"
+	asm "call pop_rbx"
 	asm "cmp rbx, rax"
 	asm "cmove rcx, rdx"
-	
-	# push rcx
-	asm "mov [rbp], rcx"
-	asm "add rbp, 8"
+	asm "call push_rcx"
 end
 
 func != a b do
@@ -291,21 +151,11 @@ end
 func > do
 	asm "mov rcx, 0"
 	asm "mov rdx, 1"
-	
-	# pop rax
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
-	# pop rbx
-	asm "sub rbp, 8"
-	asm "mov rbx, [rbp]"
-	
+	asm "call pop_rax"
+	asm "call pop_rbx"
 	asm "cmp rax, rbx"
 	asm "cmovl rcx, rdx"
-	
-	# push rcx
-	asm "mov [rbp], rcx"
-	asm "add rbp, 8"
+	asm "call push_rcx"
 end
 
 func >= a b do
@@ -323,28 +173,15 @@ end
 func syscall7 num arg1 arg2 arg3 arg4 arg5 arg6 do
 	
 	num arg1 arg2 arg3 arg4 arg5 arg6
-	
-	asm "sub rbp, 8"
-	asm "mov r9, [rbp]"
-	
-	asm "sub rbp, 8"
-	asm "mov r8, [rbp]"
-	
-	asm "sub rbp, 8"
-	asm "mov r10, [rbp]"
-	
-	asm "sub rbp, 8"
-	asm "mov rdx, [rbp]"
-	
-	asm "sub rbp, 8"
-	asm "mov rsi, [rbp]"
-	
-	asm "sub rbp, 8"
-	asm "mov rdi, [rbp]"
-	
-	asm "sub rbp, 8"
-	asm "mov rax, [rbp]"
-	
+
+	asm "call pop_r9"
+	asm "call pop_r8"
+	asm "call pop_r10"
+	asm "call pop_rdx"
+	asm "call pop_rsi"
+	asm "call pop_rdi"
+	asm "call pop_rax"
+
 	asm "push rbp"
 	asm "mov rbp, rsp"
 	asm "syscall"
@@ -353,16 +190,15 @@ func syscall7 num arg1 arg2 arg3 arg4 arg5 arg6 do
 	# this is how a error is detected
 	asm "jc .syscall_error"
 	
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
+	asm "call push_rax"
+
 	asm "jmp .syscall_end"
 	
 	asm ".syscall_error:"
+
 	asm "mov rax, -1"
-	asm "mov [rbp], rax"
-	asm "add rbp, 8"
-	
+	asm "call push_rax"
+
 	asm ".syscall_end:"
-	# return is on the stack
 end
 
