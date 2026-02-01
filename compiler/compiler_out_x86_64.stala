@@ -74,6 +74,7 @@ end
 #
 
 func out_section_code main_function_index do
+	"BITS 64\n" out_asm
 	"global _main\n" out_asm
 	"section .text\n" out_asm
 	"\n" out_asm

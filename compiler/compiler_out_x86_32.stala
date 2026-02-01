@@ -1,0 +1,299 @@
+
+func print_comments_enabled do false end
+
+func bytes_per_register do 4 end
+func local_inlined_max do 16 end
+func func_auto_reserve do 256 end
+
+#
+# PRE DEFINED FUNCTIONS
+#
+
+func out_func_push_reg reg do
+
+	reg "eax" streq if
+		"ebx" let tmp_reg
+	else
+		"eax" let tmp_reg
+	end
+
+	"\n" out_asm
+	";; push " out_asm reg out_asm " to the data stack\n" out_asm
+	"push_" out_asm reg out_asm ":\n" out_asm								# declare the function
+	"push " out_asm tmp_reg out_asm "\n" out_asm 							# save the temporary register
+	"mov " out_asm tmp_reg out_asm ", [rel dsp]\n" out_asm						# load DSP into the temporary register
+	"mov [" out_asm tmp_reg out_asm "], " out_asm reg out_asm "\n" out_asm				# save the target register to the data stack
+	"add " out_asm tmp_reg out_asm ", " out_asm bytes_per_register out_asm_number "\n" out_asm	# move up to a empty element
+	"mov [rel dsp], " out_asm tmp_reg out_asm "\n" out_asm						# save the temporary register to DSP
+	"pop " out_asm tmp_reg out_asm "\n" out_asm 							# restore the temporary register
+	"ret\n" out_asm
+end
+
+func out_func_pop_reg reg do # TODO: change working register
+
+	reg "eax" streq if
+		"ebx" let tmp_reg
+	else
+		"eax" let tmp_reg
+	end
+
+	"\n" out_asm
+	";; pop " out_asm reg out_asm " from the data stack\n" out_asm
+	"pop_" out_asm reg out_asm ":\n" out_asm								# declare the function
+	"push " out_asm tmp_reg out_asm "\n" out_asm 							# save the temporary register
+	"mov " out_asm tmp_reg out_asm ", [rel dsp]\n" out_asm						# load DSP into the temporary register
+	"sub " out_asm tmp_reg out_asm ", " out_asm bytes_per_register out_asm_number "\n" out_asm	# move down to a valid element
+	"mov " out_asm reg out_asm ", [" out_asm tmp_reg out_asm "]\n" out_asm				# load the target register with the element on the data stack
+	"mov [rel dsp], " out_asm tmp_reg out_asm "\n" out_asm						# save the temporary register to DSP
+	"pop " out_asm tmp_reg out_asm "\n" out_asm 							# restore the temporary register
+	"ret\n" out_asm
+end
+
+func out_func_push_local index do
+	"\n" out_asm
+	";; push local variable with index " out_asm index out_asm_number " \n" out_asm
+	"pushl_" out_asm index out_asm_number ":\n" out_asm
+	"mov ebx, [rel lsp]\n" out_asm
+	"mov eax, [ebx + " out_asm index bytes_per_register * out_asm_number "]\n" out_asm
+	"call push_eax\n" out_asm
+	"ret\n" out_asm
+end
+
+func out_func_pop_local index do
+	"\n" out_asm
+	";; pop local variable with index " out_asm index out_asm_number " \n" out_asm
+	"popl_" out_asm index out_asm_number ":\n" out_asm
+	"call pop_eax\n" out_asm
+	"mov ebx, [rel lsp]\n" out_asm
+	"mov [ebx + " out_asm index bytes_per_register * out_asm_number "], eax\n" out_asm
+	"ret\n" out_asm
+end
+
+#
+# ASSEMBLY OUTPUT
+#
+
+func out_section_code main_function_index do
+	"BITS 32\n" out_asm
+	"global _main\n" out_asm
+	"section .text\n" out_asm
+	"\n" out_asm
+
+	"_main:\n" out_asm
+
+	# memory region
+	"lea eax, [rel mem]\n" out_asm
+	"mov [rel mem_ptr], eax\n" out_asm
+
+	# data stack
+	"lea eax, [rel data_stack]\n" out_asm
+	"mov [rel dsp], eax\n" out_asm
+
+	# locals stack
+	"lea eax, [rel local_stack]\n" out_asm
+	"mov [rel lsp], eax\n" out_asm
+
+	# ENVP
+	"mov eax, edx\n" out_asm
+	"call push_eax\n" out_asm
+
+	# ARGC
+	"mov eax, edi\n" out_asm
+	"call push_eax\n" out_asm
+
+	# ARGV
+	"mov eax, esi\n" out_asm
+	"call push_eax\n" out_asm
+
+	main_function_index out_call_function
+
+	"_exit:\n" out_asm
+	"mov eax, 0x2000001\n" out_asm
+	"mov edi, 0\n" out_asm
+	"syscall\n" out_asm
+	"\n" out_asm
+
+	# utility functions
+
+	"\n" out_asm
+	";; start of utility functions\n" out_asm
+
+	"eax" out_func_push_reg
+	"eax" out_func_pop_reg
+
+	"ebx" out_func_push_reg
+	"ebx" out_func_pop_reg
+
+	"ecx" out_func_push_reg
+	"ecx" out_func_pop_reg
+
+	"edx" out_func_push_reg
+	"edx" out_func_pop_reg
+
+	"edi" out_func_push_reg
+	"edi" out_func_pop_reg
+
+	"esi" out_func_push_reg
+	"esi" out_func_pop_reg
+
+	"ebp" out_func_push_reg
+	"ebp" out_func_pop_reg
+
+	0 let i
+	while i local_inlined_max < do
+		i out_func_push_local
+		i out_func_pop_local
+		i ++ let i
+	end
+
+	"\n" out_asm
+	";; end of utility functions\n" out_asm
+
+end
+
+func out_section_data do
+	"\n" out_asm
+	"section .data\n" out_asm
+	"\n" out_asm
+end
+
+func out_section_end do
+	"\n" out_asm
+	"section .bss\n" out_asm
+	";; some global vars\n" out_asm
+	"\n" out_asm
+
+	";; stack for local variables\n" out_asm
+	"lsp: resq 1\n" out_asm
+	"local_stack: resq 65536\n" out_asm
+	"local_stack_end:\n" out_asm
+	"\n" out_asm
+
+	";; stack for data elements\n" out_asm
+	"dsp: resq 1\n" out_asm
+	"data_stack: resq 65536\n" out_asm
+	"data_stack_end:\n" out_asm
+	"\n" out_asm
+
+	";; memory region\n" out_asm
+	"mem_ptr: resq 1\n" out_asm
+	"mem: resb 16777216\n" out_asm
+	"mem_end:\n" out_asm
+	"\n" out_asm
+end
+
+func out_call_function index do
+	print_comments_enabled if ";; function call\n" out_asm  end
+	"call func_" out_asm index out_asm_number "\n" out_asm
+end
+
+func out_function_start index do
+	"\n" out_asm
+	"func_" out_asm index out_asm_number ":\n" out_asm
+	func_auto_reserve out_inc_local
+end
+
+func out_return index do
+	print_comments_enabled if ";; return\n" out_asm end
+	"jmp end_func_" out_asm index out_asm_number "\n" out_asm
+end
+
+func out_function_end index do
+	print_comments_enabled if ";; end of function\n" out_asm end
+	"end_func_" out_asm index out_asm_number ":\n" out_asm
+	func_auto_reserve out_dec_local
+	"ret\n" out_asm
+end
+
+func out_push_local index do
+
+	# reduce final .asm size by using a existing function
+	index local_inlined_max < if
+		"call pushl_" out_asm index out_asm_number "\n" out_asm
+		ret
+	end
+
+	print_comments_enabled if ";; push local variable\n" out_asm  end
+	"mov ebx, [rel lsp]\n" out_asm
+	"mov eax, [ebx + " out_asm index bytes_per_register * out_asm_number "]\n" out_asm
+	"call push_eax\n" out_asm
+end
+
+func out_pop_local index do
+
+	# reduce final .asm size by using a existing function
+	index local_inlined_max < if
+		"call popl_" out_asm index out_asm_number "\n" out_asm
+		ret
+	end
+
+	print_comments_enabled if ";; pop local variable\n" out_asm  end
+	"call pop_eax\n" out_asm
+	"mov ebx, [rel lsp]\n" out_asm
+	"mov [ebx + " out_asm index bytes_per_register * out_asm_number "], eax\n" out_asm
+end
+
+func out_inc_local value do
+
+	value func_auto_reserve < if
+		# called function reserves enough space
+		ret
+	end
+
+	print_comments_enabled if ";; increment local pointer\n" out_asm  end
+	"mov eax, [rel lsp]\n" out_asm
+	"add eax, " out_asm value bytes_per_register * out_asm_number "\n" out_asm
+	"mov [rel lsp], eax\n" out_asm
+end
+
+func out_dec_local value do
+
+	value func_auto_reserve < if
+		# called function reserved enough space
+		ret
+	end
+
+	print_comments_enabled if ";; decrement local pointer\n" out_asm  end
+	"mov eax, [rel lsp]\n" out_asm
+	"sub eax, " out_asm value bytes_per_register * out_asm_number "\n" out_asm
+	"mov [rel lsp], eax\n" out_asm
+end
+
+func out_push_value str do
+	print_comments_enabled if ";; push number\n" out_asm  end
+	"mov eax, " out_asm str out_asm "\n" out_asm
+	"call push_eax\n" out_asm
+end
+
+func out_push_string string_index do
+	print_comments_enabled if ";; push number\n" out_asm end
+	"lea eax, [rel str_" out_asm string_index out_asm_number "]\n" out_asm
+	"call push_eax\n" out_asm
+end
+
+func out_define_string string_index string do
+	"str_" out_asm string_index out_asm_number ": db " out_asm
+	while string ?8 0 != do
+		string ?8 out_asm_number
+		"," out_asm
+		string ++ let string
+	end
+	"0\n" out_asm
+end
+
+func out_label label do
+	print_comments_enabled if ";; label\n" out_asm end
+	label out_asm ":\n" out_asm
+end
+
+func out_jump label do
+	print_comments_enabled if ";; jump\n" out_asm end
+	"jmp " out_asm label out_asm "\n" out_asm
+end
+
+func out_jump_zero label do
+	print_comments_enabled if ";; jump zero\n" out_asm end
+	"call pop_eax\n" out_asm
+	"test eax, eax\n" out_asm
+	"jz " out_asm label out_asm "\n" out_asm
+end

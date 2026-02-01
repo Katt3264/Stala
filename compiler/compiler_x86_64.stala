@@ -1,0 +1,7 @@
+include "stdlib/x86_64_asm.stala"
+include "compiler/compiler_out_x86_64.stala"
+include "compiler/compiler.stala"
+
+# this compiler gets compiled to x86_64 assembly
+#
+# this compiler generates x86_64 assembly

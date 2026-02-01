@@ -1,0 +1,204 @@
+# x86 32 asm
+
+func mem_start do
+	asm "lea eax, [rel mem]"
+	asm "call push_eax"
+end
+
+func sizeof(ptr) do
+	8
+end
+
+func null do 0 end
+
+func dup x do x x end
+
+func del x do end
+
+# addr value
+func !ptr do
+	asm "call pop_ebx"
+	asm "call pop_eax"
+	asm "mov [eax], ebx"
+end
+
+# addr
+func ?ptr do
+	asm "call pop_eax"
+	asm "mov ebx, [eax]"
+	asm "call push_ebx"
+end
+
+# addr value
+func !8 do	
+	asm "call pop_ebx"
+	asm "call pop_eax"
+	asm "mov [eax], bl"
+end
+
+# addr
+func ?8 do
+	asm "call pop_eax"
+	asm "movzx ebx, byte [eax]"
+	asm "call push_ebx"
+end
+
+func + do
+	asm "call pop_eax"
+	asm "call pop_ebx"
+	asm "add ebx, eax"
+	asm "call push_ebx"
+end
+
+func ++ i do
+	i 1 +
+end
+
+func - do
+	asm "call pop_eax"
+	asm "call pop_ebx"
+	asm "sub ebx, eax"
+	asm "call push_ebx"
+end
+
+func -- i do
+	i 1 -
+end
+
+func * do
+	asm "call pop_eax"
+	asm "call pop_ebx"
+	asm "mul ebx"
+	asm "call push_eax"
+end
+
+# returns [a / b] [a % b]
+func DIVMOD do
+	asm "call pop_ecx" # divisor
+	asm "call pop_eax" # dividend
+	asm "cdq" # sign extend edx
+	asm "idiv ecx"
+	asm "call push_eax" # quotient
+	asm "call push_edx" # remainder
+end
+
+func / do
+	DIVMOD let rem let quo
+	quo
+end
+
+func % do
+	DIVMOD let rem let quo
+	rem
+end
+
+func >> do
+	asm "call pop_ecx"
+	asm "call pop_eax"
+	asm "shr eax, cl"
+	asm "call push_eax"
+end
+
+func << a b do
+	b 1 < if a ret end
+	b 63 > if 0 ret end
+	a 2 * b -- <<
+end
+
+func AND do
+	asm "call pop_eax"
+	asm "call pop_ebx"
+	asm "and eax, ebx"
+	asm "call push_eax"
+end
+
+func OR a b do
+	a NOT 
+	b NOT 
+	AND NOT
+end
+
+func XOR a b do
+	a b NOT AND
+	b a NOT AND
+	OR
+end
+
+func NOT do
+	asm "call pop_eax"
+	asm "not eax"
+	asm "call push_eax"
+end
+
+func true do 1 end
+
+func false do 0 end
+
+func = do
+	asm "mov ecx, 0"
+	asm "mov edx, 1"
+	asm "call pop_eax"
+	asm "call pop_ebx"
+	asm "cmp ebx, eax"
+	asm "cmove ecx, edx"
+	asm "call push_ecx"
+end
+
+func != a b do
+	1 a b = -
+end
+
+func > do
+	asm "mov ecx, 0"
+	asm "mov edx, 1"
+	asm "call pop_eax"
+	asm "call pop_ebx"
+	asm "cmp eax, ebx"
+	asm "cmovl ecx, edx"
+	asm "call push_ecx"
+end
+
+func >= a b do
+	1 a b < -
+end
+
+func < a b do
+	b a >
+end
+
+func <= a b do
+	1 a b > -
+end
+
+func syscall7 num arg1 arg2 arg3 arg4 arg5 arg6 do
+	
+	num arg1 arg2 arg3 arg4 arg5 arg6
+
+	asm "call pop_ebp"
+	asm "call pop_edi"
+	asm "call pop_esi"
+	asm "call pop_edx"
+	asm "call pop_ecx"
+	asm "call pop_ebx"
+	asm "call pop_eax"
+
+	asm "push ebp"
+	asm "mov ebp, esp"
+	asm "int 0x80"
+	asm "pop ebp"
+	
+	# this is how a error is detected
+	asm "jc .syscall_error"
+	
+	asm "call push_eax"
+
+	asm "jmp .syscall_end"
+	
+	asm ".syscall_error:"
+
+	asm "mov eax, -1"
+	asm "call push_eax"
+
+	asm ".syscall_end:"
+end
+

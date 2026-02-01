@@ -1,4 +1,3 @@
-include "stdlib/x86_64_asm.stala"
 include "stdlib/system.stala"
 include "stdlib/string.stala"
 include "stdlib/stdio.stala"

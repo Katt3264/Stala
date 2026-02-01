@@ -1,5 +1,4 @@
 include "stdlib/stdlib.stala"
-include "compiler_out_x86_64.stala"
 
 func main args do
 
