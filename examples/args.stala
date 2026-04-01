@@ -7,14 +7,14 @@ func main envp argc argv do
 
 	"####ARGV####\n" print
 	0 let c
-	while argv c 8 * + ?ptr 0 != if
+	while argv c 8 * + ?ptr 0 != do
 		argv c 8 * + ?ptr println
 		c 1 + let c
 	end
 
 	"####ENVP####\n" print
 	0 let c
-	while envp c 8 * + ?ptr 0 != if
+	while envp c 8 * + ?ptr 0 != do
 		envp c 8 * + ?ptr println
 		c 1 + let c
 	end

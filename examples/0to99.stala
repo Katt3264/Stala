@@ -2,7 +2,7 @@ include "stdlib.stala"
 
 func main do
 	0 let i	
-	while 100 i != if
+	while 100 i != do
 		i print_int
 		"\n" print
 		i ++ let i

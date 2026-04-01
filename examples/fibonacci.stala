@@ -2,7 +2,7 @@ include "stdlib.stala"
 
 func main do
 	0 let i	
-	while 30 i != if
+	while 30 i != do
 		i fibonacci print_int
 		"\n" print
 		i ++ let i

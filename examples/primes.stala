@@ -2,7 +2,7 @@ include "stdlib.stala"
 
 func main do
 	2 let i	
-	while 100 i != if
+	while 100 i != do
 		i is_prime if
 			i print_int
 			"\n" print
@@ -13,7 +13,7 @@ end
 
 func is_prime p do
 	2 let i
-	while i p < if
+	while i p < do
 		p i % 0 = if
 			false ret
 		end
