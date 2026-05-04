@@ -1,0 +1,25 @@
+package utility;
+
+public enum TOKEN_TYPE {
+	
+	INCLUDE,
+	
+	INTRINSIC,
+	
+	NUMBER,
+	STRING,
+	
+	FUNCTION,
+	WHILE,
+	IF,
+	ELIF,
+	ELSE,
+	DO,
+	BLOCK_END,
+	RETURN,
+	
+	LET,
+	ASM,
+	
+	IDENTIFIER,
+}

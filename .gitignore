@@ -1,8 +1,13 @@
 .DS_Store
 /unused
-/outputs/
-/bootstrap
+/bootstrap/R1
+/bootstrap/R2
+/bootstrap/R3
+/bootstrap/R4
+/bootstrap/StalaJava/bin
+/bootstrap/StalaJava/.classpath
+/bootstrap/StalaJava/.project
+/bootstrap/capability.txt
+/build_tmp
 run.sh
-bootstrap.asm
-bootstrap.sh
 test.stala
