@@ -1,0 +1,1783 @@
+
+func main args do
+
+	args sizeof(ptr) + let args # first argument is the name of the compiler
+
+	args ?ptr let input_file_path
+	input_file_path try_open_file let input_file
+	args sizeof(ptr) + let args
+
+	args sizeof(ptr) + let args # should be -out
+
+	args ?ptr let output_file_path
+	# output_file_path remove_file --------------------- TODO:fix
+	output_file_path create_and_open_file let out_file
+	args sizeof(ptr) + let args
+	
+	output_file out_file !ptr
+	
+	input_file parse
+	
+	input_file close_file
+	out_file close_file
+end
+
+func output_file do "01234567" end
+
+func print_output_enabled do false end
+func print_comments_enabled do false end
+
+func bytes_per_register do 8 end
+
+#
+# TOKEN PARSER
+#
+
+func out_asm str do
+	print_output_enabled if str print end
+
+	output_file ?ptr -1 = if ret end
+
+	output_file ?ptr str file_write_string
+end
+
+func out_asm_number val do
+	"0123456789012345678901234567890" let number_buffer
+	number_buffer val 10 int_to_str
+	number_buffer out_asm
+end
+
+func out_reg_push reg do
+	"mov [rbp], " out_asm reg out_asm "\n" out_asm
+	"add rbp, " out_asm bytes_per_register out_asm_number "\n" out_asm
+end
+
+func out_reg_pop reg do
+	"sub rbp, " out_asm bytes_per_register out_asm_number "\n" out_asm
+	"mov " out_asm reg out_asm ", [rbp]\n" out_asm
+end
+
+func out_section_code main_function_index do
+	"global _main\n" out_asm
+	"section .text\n" out_asm
+	"\n" out_asm
+
+	"_main:\n" out_asm
+	"mov [rel org_rsp], rsp\n" out_asm
+	"mov [rel org_rbp], rbp\n" out_asm
+
+	"lea rax, [rel mem]\n" out_asm
+	"mov [rel mem_ptr], rax\n" out_asm
+
+	"lea rbp, [rel dat_stack]\n" out_asm
+
+	"lea rax, [rel loc_stack]\n" out_asm
+	"mov [rel loc_stack_ptr], rax\n" out_asm
+
+	"rdx" out_reg_push
+	"rdi" out_reg_push
+	"rsi" out_reg_push
+
+	main_function_index out_call_function
+
+	"_exit:\n" out_asm
+	"mov rax, 0x2000001\n" out_asm
+	"mov rdi, 0\n" out_asm
+	"syscall\n" out_asm
+	"\n" out_asm
+end
+
+func out_section_data do
+	"\n" out_asm
+	"section .data\n" out_asm
+	"\n" out_asm
+end
+
+func out_section_end do
+	"\n" out_asm
+	"section .bss\n" out_asm
+	";; some global vars\n" out_asm
+	"org_rsp: resq 1\n" out_asm
+	"org_rbp: resq 1\n" out_asm
+	"\n" out_asm
+
+	";; stack for local variables\n" out_asm
+	"loc_stack_ptr: resq 1\n" out_asm
+	"loc_stack: resq 65536\n" out_asm
+	"loc_stack_end:\n" out_asm
+	"\n" out_asm
+
+	";; stack for data elements\n" out_asm
+	"dat_stack: resq 65536\n" out_asm
+	"dat_stack_end:\n" out_asm
+	"\n" out_asm
+
+	";; memory region\n" out_asm
+	"mem_ptr: resq 1\n" out_asm
+	"mem: resb 16777216\n" out_asm
+	"mem_end:\n" out_asm
+	"\n" out_asm
+end
+
+func out_function_start index do
+	"\n" out_asm
+	"func_" out_asm index out_asm_number ":\n" out_asm
+end
+
+func out_pop_local index do
+	print_comments_enabled if ";; pop local variable\n" out_asm  end
+	"rax" out_reg_pop
+	"mov rbx, [rel loc_stack_ptr]\n" out_asm
+	"mov [rbx + " out_asm index bytes_per_register * out_asm_number "], rax\n" out_asm
+end
+
+func out_push_local index do
+	print_comments_enabled if ";; push local variable\n" out_asm  end
+	"mov rbx, [rel loc_stack_ptr]\n" out_asm
+	"mov rax, [rbx + " out_asm index bytes_per_register * out_asm_number "]\n" out_asm
+	"rax" out_reg_push
+end
+
+func out_inc_local value do
+	print_comments_enabled if ";; increment local pointer\n" out_asm  end
+	"mov rax, [rel loc_stack_ptr]\n" out_asm
+	"add rax, " out_asm value bytes_per_register * out_asm_number "\n" out_asm
+	"mov [rel loc_stack_ptr], rax\n" out_asm
+end
+
+func out_dec_local value do
+	print_comments_enabled if ";; decrement local pointer\n" out_asm  end
+	"mov rax, [rel loc_stack_ptr]\n" out_asm
+	"sub rax, " out_asm value bytes_per_register * out_asm_number "\n" out_asm
+	"mov [rel loc_stack_ptr], rax\n" out_asm
+end
+
+func out_push_value str do
+	print_comments_enabled if ";; push number\n" out_asm  end
+	"mov rax, " out_asm str out_asm "\n" out_asm
+	"rax" out_reg_push
+end
+
+func out_push_string string_index do
+	print_comments_enabled if ";; push number\n" out_asm end
+	"lea rax, [rel str_" out_asm string_index out_asm_number "]\n" out_asm
+	"rax" out_reg_push
+end
+
+func out_define_string string_index string do
+	"str_" out_asm string_index out_asm_number ": db " out_asm
+	while string ?8 0 != do
+		string ?8 out_asm_number
+		"," out_asm
+		string ++ let string
+	end
+	"0\n" out_asm
+end
+
+func out_call_function index do
+	print_comments_enabled if ";; function call\n" out_asm  end
+	"call func_" out_asm index out_asm_number "\n" out_asm
+end
+
+func out_return do
+	print_comments_enabled if ";; return\n" out_asm end
+	"ret\n" out_asm
+end
+
+func out_if block do
+	"rax" out_reg_pop
+	"test rax, rax\n" out_asm
+	"jz block_" out_asm
+	block block_get_block_index out_asm_number
+	"_" out_asm
+	block block_get_block_sub_index ++ out_asm_number
+	"\n" out_asm
+end
+
+func out_else block do
+	"jmp end_" out_asm
+	block block_get_block_index out_asm_number
+	"\n" out_asm
+	"block_" out_asm
+	block block_get_block_index out_asm_number
+	"_" out_asm
+	block block_get_block_sub_index out_asm_number
+	":\n" out_asm
+end
+
+func out_end_if block do
+	"block_" out_asm
+	block block_get_block_index out_asm_number
+	"_" out_asm
+	block block_get_block_sub_index out_asm_number
+	":\n" out_asm
+	"end_" out_asm
+	block block_get_block_index out_asm_number
+	":\n" out_asm
+end
+
+func out_while block do
+	"while_" out_asm
+	block block_get_block_index out_asm_number
+	":\n" out_asm
+end
+
+func out_while_do block do
+	"rax" out_reg_pop
+	"test rax, rax\n" out_asm
+	"jz end_" out_asm
+	block block_get_block_index out_asm_number
+	"\n" out_asm
+end
+
+func out_end_while block do
+	"jmp while_" out_asm
+	block block_get_block_index out_asm_number
+	"\n" out_asm
+	"end_" out_asm
+	block block_get_block_index out_asm_number
+	":\n" out_asm
+end
+
+func new_block do 4 new_array end
+func block_get_block_index block             do block 0             array_get_index end
+func block_set_block_index block block_index do block 0 block_index array_set_index end
+
+func block_get_block_sub_index block                 do block 1                 array_get_index end
+func block_set_block_sub_index block block_sub_index do block 1 block_sub_index array_set_index end
+
+func block_get_block_type block            do block 2            array_get_index end
+func block_set_block_type block block_type do block 2 block_type array_set_index end
+
+func block_type_while    do "while" end
+func block_type_while_do do "while do" end
+func block_type_if       do "if" end
+func block_type_elif     do "elif" end
+func block_type_else     do "else" end
+
+func status_tokenize_spacers do 1 end
+func status_tokenize_token do 2 end
+func status_tokenize_string do 3 end
+func status_tokenize_escaped do 4 end
+func status_tokenize_comment do 5 end
+func status_tokenize_number do 6 end
+
+func status_parse_source do 1001 end
+func status_parse_function_name do 1002 end
+func status_parse_function_args do 1003 end
+func status_parse_function_body do 1004 end
+func status_parse_after_asm do 1005 end
+func status_parse_after_let do 1006 end
+func status_parse_include do 1007 end
+
+
+func parse input_file do
+	
+	" \t\n" let spacers
+	"0123456789" let number_chars
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_+-*<=>(){}[]?!:/%" let token_first_chars
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/%" let token_chars
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/% #.:,;" let string_chars
+	"nts\\\"" let escaped_chars
+	
+	1024 malloc let token_string
+	1024 malloc let function_string
+	
+	1024 new_list let block_stack
+	0 let block_index 
+	
+	4096 malloc let include_list
+	0 let include_list_length
+
+	4096 new_list let string_list
+	4096 new_list let function_list
+	4096 new_list let locals_list
+	
+	function_list "main" list_force_get_index_of_string out_section_code
+
+	status_parse_source let parser_status
+	
+	# main token loop
+	true let parsing_tokens
+	while parsing_tokens do
+	
+		token_string 0 !8
+		status_tokenize_spacers let lexer_status
+		false let token_is_string
+		false let token_is_identifier
+		false let token_is_number
+		
+		#build token
+		true let lexing_token
+		while lexing_token do
+		
+			input_file file_read_char let char
+		
+			lexer_status status_tokenize_spacers = if
+
+				spacers char strchr null != if
+					# do nothing
+					status_tokenize_spacers let lexer_status
+				
+				else char "\"" ?8 = elif
+					# begining of string
+					true let token_is_string
+					token_string char strcatchr
+					status_tokenize_string let lexer_status
+				
+				else token_first_chars char strchr null != elif
+					# begining of token
+					true let token_is_identifier
+					token_string char strcatchr
+					status_tokenize_token let lexer_status
+					
+				else number_chars char strchr null != elif
+					# number
+					true let token_is_number
+					token_string char strcatchr
+					status_tokenize_token let lexer_status
+					
+				#else char "-" ?8 = elif #TODO improve
+				#	# negative number
+				#	true let token_is_number
+				#	token_string char strcatchr
+				#	status_tokenize_token let lexer_status
+				#
+				#else char "+" ?8 = elif
+				#	# positive number
+				#	true let token_is_number
+				#	token_string char strcatchr
+				#	status_tokenize_token let lexer_status
+				#
+				else char "#" ?8 = elif
+					# begining of comment
+					status_tokenize_comment let lexer_status
+			
+				else char EOF = elif
+					# end of file reached
+					false let lexing_token
+					
+				else
+					"invalid character: " error
+					"?" dup char !8  error
+					fail
+					
+				end
+		
+			else lexer_status status_tokenize_token = elif
+		
+				spacers char strchr null != if
+					# end of token reached
+					false let lexing_token
+					
+				else token_chars char strchr null != elif
+					# continue token
+					token_string char strcatchr
+					status_tokenize_token let lexer_status
+				
+				else char EOF = elif
+					# end of file reached
+					false let lexing_token
+					
+				else
+					"invalid character in token: " error
+					"?" dup char !8  error
+					fail
+					
+				end
+			
+			else lexer_status status_tokenize_string = elif
+		
+				string_chars char strchr null != if
+					# continue string
+					token_string char strcatchr
+					status_tokenize_string let lexer_status
+				
+				else char "\\" ?8 = elif
+					# escaped character
+					token_string char strcatchr
+					status_tokenize_escaped let lexer_status
+			
+				else char "\"" ?8 = elif
+					# end of string
+					token_string char strcatchr
+					false let lexing_token
+				
+				else
+					"invalid character in string: " error
+					"?" dup char !8 error
+					fail
+					
+				end
+			
+			else lexer_status status_tokenize_escaped = elif
+		
+				escaped_chars char strchr null != if
+					# continue string
+					token_string char strcatchr
+					status_tokenize_string let lexer_status
+				
+				else
+					"invalid character escaped character: " error
+					"?" dup char !8 error
+					fail
+					
+				end
+			
+			else lexer_status status_tokenize_comment = elif
+			
+				char "\n" ?8 = if
+					# end of comment
+					status_tokenize_spacers let lexer_status
+				
+				else char EOF = elif
+					# end of file reached
+					false let lexing_token
+				
+				else
+					# character in comment
+				end
+			
+			else
+				"unimplementad lexer status" error
+				 fail
+				 
+			end
+		
+		end
+		
+		# identify token
+		parser_status status_parse_source = if
+			
+			token_string "func" streq if
+				locals_list list_clear
+				status_parse_function_name let parser_status
+			
+			else token_string "include" streq elif
+				status_parse_include let parser_status
+				
+			else token_string strlen 0 = elif
+				# end of tokens
+				include_list_length 0 != if
+					# more included files to parse
+					include_list_length -- let include_list_length
+					include_list include_list_length sizeof(ptr) * + ?ptr let include_string
+					
+					input_file close_file
+					include_string try_open_file let input_file
+					
+					input_file -1 = if
+						"unable to find file: " error
+						include_string error
+						fail
+					end
+				else
+					# no more files to include, stop parsing
+					false let parsing_tokens
+				end
+				
+			else
+				"unexpected token in source: " error
+				token_string error
+				fail
+				
+			end
+		
+		else parser_status status_parse_include = elif
+			
+			token_is_string if
+				# file name string
+				token_string strlen let token_string_length
+				token_string_length 1 - malloc let include_string
+				token_string ++ include_string token_string_length 2 - memcpy
+				include_string token_string_length + 2 - 0 !8
+				
+				include_list include_list_length sizeof(ptr) * + include_string !ptr
+				include_list_length ++ let include_list_length
+				
+				status_parse_source let parser_status
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after include: " error
+				fail
+			
+			else
+				"unexpected token after include: " error
+				token_string error
+				fail
+				
+			end
+		
+		else parser_status status_parse_function_name = elif
+			
+			token_is_identifier if
+				# the name of the function
+				token_string function_string strcpy
+				function_list function_string list_force_get_index_of_string out_function_start
+				status_parse_function_args let parser_status
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after func" error
+				fail
+			
+			else
+				"unexpected token after func: " error
+				token_string error
+				fail
+				
+			end
+			
+		else parser_status status_parse_function_args = elif
+			
+			token_string "do" streq if
+				# end of function argument declaration
+				# reverse order of arguments
+				locals_list list_reverse
+				status_parse_function_body let parser_status
+				
+			else token_is_identifier elif
+				# function argument identifier
+				
+				# add local variable to list
+				locals_list token_string list_force_get_index_of_string out_pop_local
+				status_parse_function_args let parser_status
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens in function arguments" error
+				fail
+			
+			else
+				"unexpected token in function argument: " error
+				token_string error
+				fail
+				
+			end
+			
+		else parser_status status_parse_function_body = elif
+			
+			token_string "while" streq if
+				#-label while:[block index]
+				new_block let nblock
+				nblock block_index block_set_block_index
+				block_index ++ let block_index
+				nblock 0 block_set_block_sub_index
+				nblock block_type_while block_set_block_type
+				block_stack nblock list_push
+				nblock out_while
+			
+			else token_string "do" streq elif
+				# conditional jump to next sub block
+				#-jz end[block]
+				
+				# check if this is a while - if
+				block_stack list_get_size 0 != if
+					block_stack list_peek let nblock
+					nblock block_get_block_type block_type_while = if
+						nblock block_type_while_do block_set_block_type
+						nblock out_while_do
+					end
+				end
+	
+			else token_string "if" streq elif
+				# conditional jump to next sub block
+				#-jz label block[block]:[sub block + 1]
+				
+				new_block let nblock
+				nblock block_index block_set_block_index
+				block_index ++ let block_index
+				nblock 0 block_set_block_sub_index
+				nblock block_type_if block_set_block_type
+				block_stack nblock list_push
+				nblock out_if
+		
+			else token_string "elif" streq elif
+				# conditional jump to next sub block
+				#-jz label block[block]:[sub block + 1]
+				
+				block_stack list_get_size 0 = if
+					"elif can not be the start of a block" error fail
+				end
+				block_stack list_peek let nblock
+				
+				nblock block_get_block_type block_type_else != if
+					"elif can only come after else" error fail
+				end
+				
+				nblock nblock block_get_block_sub_index ++ block_set_block_sub_index
+				nblock block_type_elif block_set_block_type
+				nblock out_if
+		
+			else token_string "else" streq elif
+				#-jmp label end:[block index]
+				#-label block:[block index]:[sub index]
+				
+				block_stack list_get_size 0 = if
+					"else can not be the start of a block" error fail
+				end
+				block_stack list_peek let nblock
+				
+				nblock block_get_block_type block_type_if != 
+				nblock block_get_block_type block_type_elif != AND if
+					"else can only come after if or elif " error nblock block_get_block_type error fail
+				end
+				
+				nblock nblock block_get_block_sub_index ++ block_set_block_sub_index
+				nblock block_type_else block_set_block_type
+				nblock out_else
+		
+			else token_string "end" streq elif
+				
+				block_stack list_get_size 0 = if
+					# end of function
+					status_parse_source let parser_status
+					out_return
+					
+				else
+					block_stack list_pop let nblock
+					
+					nblock block_get_block_type block_type_while = if
+						"end can not come after while" error fail
+						
+					else nblock block_get_block_type block_type_while_do = elif
+						nblock out_end_while
+						
+					else nblock block_get_block_type block_type_if = 
+					     nblock block_get_block_type block_type_elif = OR
+					     nblock block_get_block_type block_type_else = OR elif
+					     	nblock nblock block_get_block_sub_index ++ block_set_block_sub_index
+							nblock out_end_if
+						
+					else
+						"unknown block type: " error nblock block_get_block_type error fail
+					end
+				
+				end
+		
+			else token_string "ret" streq elif
+				out_return
+		
+			else token_string "let" streq elif
+				status_parse_after_let let parser_status
+		
+			else token_string "asm" streq elif
+				status_parse_after_asm let parser_status
+		
+			else token_is_number elif #TODO:improve
+				# number to push
+				# token_string 10 str_to_int out_push_value
+				token_string out_push_value
+				
+			else token_string "-1" streq elif #TODO:improve, quick fix for negative number -1
+				# number to push
+				# token_string 10 str_to_int out_push_value
+				token_string out_push_value
+			
+			else token_is_identifier elif 
+				# identifier is a local variable or function call
+
+				locals_list token_string list_get_index_of_string let local_index
+				local_index -1 != if
+					# identifier is a local variable
+					local_index out_push_local
+					
+				else
+					# identifier is a function
+					locals_list list_get_size out_inc_local
+					function_list token_string list_force_get_index_of_string out_call_function
+					locals_list list_get_size out_dec_local
+				end
+				
+			else token_is_string elif
+				#string
+				string_list list_get_size let string_index
+				token_string strlen ++ malloc let tmp_string
+				token_string tmp_string strcpy
+				string_list tmp_string list_add
+				string_index out_push_string
+			
+			else token_string strlen 0 = elif
+				"unexpected end of tokens in function body" error
+				fail
+			
+			else
+				"unexpected token in function body: " error
+				token_string error
+				fail
+				
+			end
+			
+		else parser_status status_parse_after_asm = elif
+			
+			token_is_string if
+				# TODO: unescape string properly
+				status_parse_function_body let parser_status
+				token_string dup strlen -- + 0 !8
+				token_string ++ out_asm
+				"\n" out_asm
+				
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after asm" error
+				fail
+			
+			else
+				"unexpected token after asm: " error
+				token_string error
+				fail
+				
+			end
+		
+		else parser_status status_parse_after_let = elif
+			
+			token_is_identifier if
+				# local variable identifier
+				locals_list token_string list_force_get_index_of_string out_pop_local
+				status_parse_function_body let parser_status
+				
+			else token_string strlen 0 = elif
+				"unexpected end of tokens after let" error
+				fail
+			
+			else
+				"unexpected token after let: " error
+				token_string error
+				fail
+				
+			end
+		
+		else
+			"unimplemented parser status" error
+			fail
+			
+		end
+		
+	end
+
+	
+	# strings
+
+	out_section_data
+	
+	4096 malloc let unescaped_string_buffer
+
+	0 let string_index
+	while string_list list_get_size string_index != do
+		
+		string_list string_index list_get_index unescaped_string_buffer str_unescape
+			
+		string_index unescaped_string_buffer out_define_string
+
+		string_index ++ let string_index
+	end
+
+	out_section_end
+	
+end
+
+func str_unescape src dst do
+	# ignore first "
+	src ++ let src 
+	while src ?8 0 != do
+		src ?8 let char
+		char "\"" ?8 = if
+			# must be end of string
+			dst 0 !8
+		else char "\\" ?8 = elif
+			src ++ let src
+			src ?8 let char
+
+			char "\\" ?8 = if
+				dst "\\" ?8 !8
+			else char "\"" ?8 = elif
+				dst "\"" ?8 !8
+			else char "n" ?8 = elif
+				dst "\n" ?8 !8
+			else char "t" ?8 = elif
+				dst "\t" ?8 !8
+			else char "s" ?8 = elif
+				dst 32 !8 # space
+			else
+				"invalid escape character" error fail
+			end
+			dst ++ let dst
+		else
+			dst char !8
+			dst ++ let dst
+		end
+		src ++ let src
+	end
+end
+
+func mem_start do
+	# move mem to rax
+	asm "lea rax, [rel mem]"
+
+	# push rax
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+end
+
+func sizeof(ptr) do
+	8
+end
+
+func null do 0 end
+
+func dup x do x x end
+
+func !ptr do	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	asm "mov [rax], rbx"
+end
+
+func ?ptr do
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	asm "mov rbx, [rax]"
+	
+	# push rbx
+	asm "mov [rbp], rbx"
+	asm "add rbp, 8"
+end
+
+func !8 do	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	asm "mov [rax], bl"
+end
+
+func ?8 do
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	asm "movzx rbx, byte [rax]"
+	
+	# push rbx
+	asm "mov [rbp], rbx"
+	asm "add rbp, 8"
+end
+
+func + do	
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	asm "add rbx, rax"
+	
+	# push rbx
+	asm "mov [rbp], rbx"
+	asm "add rbp, 8"
+end
+
+func ++ i do
+	i 1 +
+end
+
+func - do	
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	asm "sub rbx, rax"
+	
+	# push rbx
+	asm "mov [rbp], rbx"
+	asm "add rbp, 8"
+end
+
+func -- i do
+	i 1 -
+end
+
+func * do
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	asm "mul rbx"
+	
+	# push rax
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+end
+
+func DIVMOD do
+	
+	# pop rcx (divisor)
+	asm "sub rbp, 8"
+	asm "mov rcx, [rbp]"
+	
+	# pop rax (dividend)
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+
+	# sign extend rdx
+	asm "cqo"
+	
+	asm "idiv rcx"
+	
+	# push rax (quotient)
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+	
+	# push rdx (remainder)
+	asm "mov [rbp], rdx"
+	asm "add rbp, 8"
+end
+
+func / do
+	DIVMOD let rem let quo
+	quo
+end
+
+func % do
+	DIVMOD let rem let quo
+	rem
+end
+
+func >> do
+	# pop rcx
+	asm "sub rbp, 8"
+	asm "mov rcx, [rbp]"
+	
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	asm "shr rax, cl"
+	
+	# push rax
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+end
+
+func << a b do
+	b 1 < if a ret end
+	b 63 > if 0 ret end
+	a 2 * b -- <<
+end
+
+func AND do
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	asm "and rax, rbx"
+	
+	# push rax
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+end
+
+func OR a b do
+	a NOT 
+	b NOT 
+	AND NOT
+end
+
+func XOR a b do
+	a b NOT AND
+	b a NOT AND
+	OR
+end
+
+func NOT do
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	asm "not rax"
+	
+	# push rax
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+end
+
+func true do 1 end
+
+func false do 0 end
+
+func = do
+	asm "mov rcx, 0"
+	asm "mov rdx, 1"
+	
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	asm "cmp rbx, rax"
+	asm "cmove rcx, rdx"
+	
+	# push rcx
+	asm "mov [rbp], rcx"
+	asm "add rbp, 8"
+end
+
+func != a b do
+	1 a b = -
+end
+
+func > do
+	asm "mov rcx, 0"
+	asm "mov rdx, 1"
+	
+	# pop rax
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	# pop rbx
+	asm "sub rbp, 8"
+	asm "mov rbx, [rbp]"
+	
+	asm "cmp rax, rbx"
+	asm "cmovl rcx, rdx"
+	
+	# push rcx
+	asm "mov [rbp], rcx"
+	asm "add rbp, 8"
+end
+
+func >= a b do
+	1 a b < -
+end
+
+func < a b do
+	b a >
+end
+
+func <= a b do
+	1 a b > -
+end
+
+func syscall7 num arg1 arg2 arg3 arg4 arg5 arg6 do
+	
+	num arg1 arg2 arg3 arg4 arg5 arg6
+	
+	asm "sub rbp, 8"
+	asm "mov r9, [rbp]"
+	
+	asm "sub rbp, 8"
+	asm "mov r8, [rbp]"
+	
+	asm "sub rbp, 8"
+	asm "mov r10, [rbp]"
+	
+	asm "sub rbp, 8"
+	asm "mov rdx, [rbp]"
+	
+	asm "sub rbp, 8"
+	asm "mov rsi, [rbp]"
+	
+	asm "sub rbp, 8"
+	asm "mov rdi, [rbp]"
+	
+	asm "sub rbp, 8"
+	asm "mov rax, [rbp]"
+	
+	asm "push rbp"
+	asm "mov rbp, rsp"
+	asm "syscall"
+	asm "pop rbp"
+	
+	# this is how a error is detected
+	asm "jc .syscall_error"
+	
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+	asm "jmp .syscall_end"
+	
+	asm ".syscall_error:"
+	asm "mov rax, -1"
+	asm "mov [rbp], rax"
+	asm "add rbp, 8"
+	
+	asm ".syscall_end:"
+	# return is on the stack
+end
+
+
+func syscall1 num do
+	num 0 0 0 0 0 0 syscall7
+end
+
+func syscall2 num arg1 do
+	num arg1 0 0 0 0 0 syscall7
+end
+
+func syscall3 num arg1 arg2 do
+	num arg1 arg2 0 0 0 0 syscall7
+end
+
+func syscall4 num arg1 arg2 arg3 do
+	num arg1 arg2 arg3 0 0 0 syscall7
+end
+
+func syscall5 num arg1 arg2 arg3 arg4 do
+	num arg1 arg2 arg3 arg4 0 0 syscall7
+end
+
+func syscall6 num arg1 arg2 arg3 arg4 arg5 do
+	num arg1 arg2 arg3 arg4 arg5 0 syscall7
+end
+
+
+#
+# status - the exit code
+#
+func exit status do
+	0x2000001 status syscall2
+end
+
+
+#
+# fd - file descriptor to read from
+# buf - buffer to write to
+# len - number of bytes to attempt to read
+#
+# len - number of bytes read or -1 on error
+#
+func read fd buf len do
+	0x2000003 fd buf len syscall4
+end
+
+#
+# fd - file descriptor to write to
+# buf - buffer to write from
+# len - number of bytes to attempt to write
+#
+# len - number of bytes written, -1 on error
+#
+func write fd buf len do
+	0x2000004 fd buf len syscall4
+end
+
+#
+# path - path to file
+# flags - flags
+# mode - mode
+#
+# fd - file descriptor of open file, -1 on error
+# TODO: 2 is returned if file does not exist???
+#
+func open path flags mode do
+	0x2000005 path flags mode syscall4
+end
+
+#
+# fd - file descriptor to close
+#
+# status - 0 on success, -1 on error
+#
+func close fd do
+	0x2000006 fd syscall2
+end
+
+#
+# TODO: 
+#
+# 
+#
+func unlink path do
+	0x2000000 10 + path syscall2
+end
+
+func strcpy src dst do
+	while true do
+		src ?8 let ch
+		dst ch !8
+		ch 0 = if ret end
+		src ++ let src
+		dst ++ let dst
+	end
+end
+
+func strcat dst src do
+	dst dst strlen + let dst
+	src dst strcpy
+end
+
+func strcatchr dst char do
+	dst dst strlen + let dst
+	dst char !8
+	dst ++ 0 !8
+end
+
+func strlen str do
+	0 let i
+	while str i + ?8 0 != do
+		i 1 + let i
+	end
+	i ret
+end
+
+func strchr str chr do
+	while true do
+		str ?8 let c
+		c chr = if str ret end
+		c 0 = if null ret end
+		str ++ let str
+	end
+end
+
+func strstr str substr do
+	substr strlen let len
+	while true do
+		str ?8 0 = if null ret end
+		str substr len strncmp 0 = if str ret end
+		str ++ let str
+	end
+end
+
+func streq str1 str2 do
+	str1 str2 strcmp 0 =
+end
+
+func strcmp str1 str2 do
+	while true do
+		str1 ?8 let ch1
+		str2 ?8 let ch2
+		
+		ch1 ch2 < if
+			-1 ret
+		else ch1 ch2 > elif
+			1 ret
+		else 
+			ch1 0 = if 0 ret end
+		end
+		str1 ++ let str1
+		str2 ++ let str2
+	end
+end
+
+func strncmp str1 str2 len do
+	while true do
+		str1 ?8 let ch1
+		str2 ?8 let ch2
+		
+		len 0 = if 0 ret end
+		
+		ch1 ch2 < if
+			-1 ret
+		else ch1 ch2 > elif
+			1 ret
+		else 
+			#equality - both end reached
+			ch1 0 = if 0 ret end
+		end
+		str1 ++ let str1
+		str2 ++ let str2
+		len -- let len
+	end
+end
+
+func memcpy src dst len do
+	while len 0 != len -- let len do
+		src ?8 let char
+		dst char !8
+		src ++ let src
+		dst ++ let dst
+	end
+end
+
+
+func is_str_int str base do
+	str base try_str_to_int let val let status
+	status
+end
+
+
+func str_to_int str base do
+	str base try_str_to_int let val let status
+	status false = if "string could not be converted to int: " fail str fail exit end
+	val
+end
+
+
+func try_str_to_int str base do
+	base 2 < base 16 > OR if "invalid base" fail exit end
+	1 let factor
+	str ?8 "-" ?8 = if
+		-1 let factor str ++ let str 
+	else str ?8 "+" ?8 = elif
+		#positive number
+	end
+	
+	0 let value
+	
+	str ?8 0 = if false 0 ret end
+	
+	
+	while str ?8 0 != do
+	
+		str ?8 let char
+		
+		value base * let value
+		char "0" ?8 = if
+			value 0 + let value
+		else char "1" ?8 = elif
+			value 1 + let value
+		else char "2" ?8 = base 2 > AND elif
+			value 2 + let value
+		else char "3" ?8 = base 3 > AND elif
+			value 3 + let value
+		else char "4" ?8 = base 4 > AND elif
+			value 4 + let value
+		else char "5" ?8 = base 5 > AND elif
+			value 5 + let value
+		else char "6" ?8 = base 6 > AND elif
+			value 6 + let value
+		else char "7" ?8 = base 7 > AND elif
+			value 7 + let value
+		else char "8" ?8 = base 8 > AND elif
+			value 8 + let value
+		else char "9" ?8 = base 9 > AND elif
+			value 9 + let value
+		else char "a" ?8 = base 10 > AND elif
+			value 10 + let value
+		else char "b" ?8 = base 11 > AND elif
+			value 11 + let value
+		else char "c" ?8 = base 12 > AND elif
+			value 12 + let value
+		else char "d" ?8 = base 13 > AND elif
+			value 13 + let value
+		else char "e" ?8 = base 14 > AND elif
+			value 14 + let value
+		else char "f" ?8 = base 15 > AND elif
+			value 15 + let value
+		else
+			false 0 ret
+		end
+		str ++ let str
+	end
+	
+	true value factor *
+end
+
+func int_to_str dst val base do
+	
+	base 2 < base 16 > OR if "invalid base" fail exit end
+	
+	val 0 < if
+		dst "-" ?8 !8
+		dst ++ let dst
+		val -1 * let val
+	end
+	
+	val 0 = if
+		dst "0" ?8 !8
+		dst ++ let dst
+	end
+	
+	dst let ptr
+	"0123456789abcdef" let num_to_char
+	
+	while val 0 != do
+		val base % let remainder
+		val base / let val
+		ptr num_to_char remainder + ?8 !8
+		
+		ptr ++ let ptr
+	end
+	
+	ptr 0 !8
+	ptr -- let ptr
+	
+	while ptr dst > do
+		ptr ?8 let v1
+		dst ?8 let v2
+		
+		ptr v2 !8
+		dst v1 !8
+		
+		ptr -- let ptr
+		dst ++ let dst
+	end
+	
+end
+
+func fail do
+	10000000 while dup 0 != do -- end
+	-1 exit
+end
+
+func error str do
+	10000000 while dup 0 != do -- end
+	str eprint
+	10000000 while dup 0 != do -- end
+end
+
+func print_hex num do
+	
+	"1234567890123456" let tmp
+	0 let i
+	while i 16 != do
+		num 0xf AND "0123456789abcdef" + ?8 let char
+		tmp 15 i - + char !8
+		
+		i ++ let i
+		num 4 >> let num
+	end
+	tmp println
+end
+
+func print_int val do
+	"0123456789012345678901234567890" dup val 10 int_to_str print
+end
+
+func print str do
+	str str strlen stdout
+end
+
+func println str do
+	str str strlen stdout
+	"\n" 1 stdout
+end
+
+func eprint str do
+	str str strlen stderr
+end
+
+func eprintln str do
+	str str strlen stderr
+	"\n" 1 stderr
+end
+
+func stdout buf len do
+	1 buf len write let q
+end
+
+func stderr buf len do
+	2 buf len write let q
+end
+
+func stdin buf len do
+	0 buf len read
+end
+
+func malloc bytes do
+	CHUNK_ALLOCED bytes malloc_type
+end
+
+func malloc_type type bytes do
+	setup_mem
+	
+	get_start_chunk let current_chunk
+	get_start_chunk let first_free_chunk
+	
+	while true do
+		
+		current_chunk get_end_chunk >= if
+			"malloc out of memory" error fail
+		end
+		
+		current_chunk get_chunk_state let current_chunk_state
+		current_chunk get_next_chunk let current_next_chunk
+		
+		
+		current_chunk_state CHUNK_FREE != if
+			current_next_chunk let first_free_chunk
+			
+		else
+			bytes CHUNK_OVERHEAD + let required_size1
+			bytes CHUNK_OVERHEAD2 + let required_size2
+			
+			current_next_chunk first_free_chunk -    required_size1 = if
+				first_free_chunk let chunk1
+				
+				chunk1    current_next_chunk chunk1 -     set_chunk_size
+				chunk1    type                 set_chunk_state
+				chunk1 CHUNK_OVERHEAD + ret
+				
+			else current_next_chunk first_free_chunk - required_size2 >= elif
+				first_free_chunk let chunk1
+				first_free_chunk bytes CHUNK_OVERHEAD + + let chunk2
+				
+				chunk1    chunk2 chunk1 -     set_chunk_size
+				chunk1    type     set_chunk_state
+				chunk2    current_next_chunk chunk2 -  set_chunk_size
+				chunk2    CHUNK_FREE          set_chunk_state
+				chunk1 CHUNK_OVERHEAD + ret
+				
+			end
+		end
+		
+		current_next_chunk let current_chunk
+	end
+end
+
+func free ptr do
+	ptr CHUNK_OVERHEAD - CHUNK_FREE set_chunk_state
+end
+
+func memsize ptr do
+	ptr CHUNK_OVERHEAD - ?ptr CHUNK_OVERHEAD -
+end
+
+func setup_mem do
+	#TODO 
+	"A" let ptr
+	ptr ?8 0 = if ret end
+	ptr 0 !8
+
+	get_start_chunk get_end_chunk get_start_chunk - set_chunk_size
+	get_start_chunk CHUNK_FREE set_chunk_state
+end
+
+func get_start_chunk do mem_start end
+func get_end_chunk do mem_start 256 256 256 * * + end
+func get_next_chunk chunk do chunk chunk get_chunk_size + end
+
+func get_chunk_size chunk do chunk ?ptr end
+func set_chunk_size chunk size do chunk size !ptr end
+
+func get_chunk_state chunk do chunk sizeof(ptr) + ?ptr end
+func set_chunk_state chunk state do chunk sizeof(ptr) + state !ptr end
+
+func ptr_to_chunk ptr do ptr sizeof(ptr) 2 * - end
+
+func CHUNK_OVERHEAD do sizeof(ptr) 2 * end
+func CHUNK_OVERHEAD2 do CHUNK_OVERHEAD 2 * end
+
+func CHUNK_FREE do 1 end
+func CHUNK_ALLOCED do 2 end
+
+func EOF do -1 end
+
+func create_and_open_file path do
+	# 01000 - o_create
+	# 00100 - o_trunc
+	# 00002 - read write
+	# path 01102 0644 open let status IMPORTANT OCTAL NOT SUPPORTED
+	path 0x242 0x1A4 open let status
+
+	status -1 = if
+		"error creating and opening file: " error path error fail
+	end
+	
+	status
+end
+
+func try_open_file path do
+	# 01000 - o_create
+	# 00100 - o_trunc
+	# 00003 - read write
+	# IMPORTANT OCTAL NOT SUPPORTED
+	path 2 0 open let status
+
+	status -1 = if
+		"error opening file: " error path error fail
+	end
+	
+	status
+end
+
+func remove_file path do
+	path unlink let status
+
+	status -1 = if
+		"error removing file: " error path error
+	end
+	
+	status
+end
+
+func exists_file path do # TODO: implement
+
+end
+
+func close_file fd do
+	fd close let status
+
+	status -1 = if
+		"error closing fd " error
+	end
+	
+	status
+end
+
+func file_read_line fd buffer length do
+	
+	while true do
+		
+		fd file_read_char let char
+		buffer 0 !8
+		
+		char -1 != char "\n" ?8 != AND if
+			buffer  char !8
+			buffer ++ let buffer
+		else
+			ret
+		end
+		
+		
+	end
+	
+end
+
+func file_read_char fd do
+	"0" let buffer
+	fd buffer 1 read let len
+	len 1 != if
+		-1 ret
+	end
+	buffer ?8
+end
+
+
+func file_write_char fd char do
+	"0" let buffer
+	buffer char !8
+	fd buffer 1 write let len
+end
+
+func file_write_string fd str do
+	fd str str strlen write let len
+end
+
+func new_array size do
+	size ++ sizeof(ptr) * malloc let array
+	array size !ptr
+	array
+end
+
+func array_get_size arr do
+	arr ?ptr
+end
+
+func array_get_index arr index do
+	arr array_get_size let size
+	index size >= if "array index out ouf bounds" error fail end
+	index 0 < if "array index out ouf bounds" error fail end
+	arr index ++ sizeof(ptr) * + ?ptr
+end
+
+func array_set_index arr index value do
+	arr array_get_size let size
+	index size >= if "array index out ouf bounds" error fail end
+	index 0 < if "array index out ouf bounds" error fail end
+	arr index ++ sizeof(ptr) * + value !ptr
+end
+
+func new_list size do
+	size ++ new_array let list
+	list 0 0 array_set_index
+	list
+end
+
+func list_get_size list do
+	list 0 array_get_index
+end
+
+func list_clear list do
+	list 0 0 array_set_index
+end
+
+func list_add list value do list value list_push end
+
+func list_push list value do
+	list list_get_size let list_size
+	list array_get_size let array_size
+	list_size -- array_size >= if "list index out of bounds" error fail end
+	list list_size ++ value array_set_index
+	list 0 list_size ++ array_set_index
+end
+
+func list_get_index list index do
+	list list_get_size let list_size
+	index list_size >= if "list index out of bounds" error fail end
+	index 0 < if "list index out of bounds" error fail end
+	list index ++ array_get_index
+end
+
+func list_set_index list index value do
+	list list_get_size let list_size
+	index list_size >= if "list index out of bounds" error fail end
+	index 0 < if "list index out of bounds" error fail end
+	list index ++ value array_set_index
+end
+
+func list_pop list do
+	list list_get_size let list_size
+	list array_get_size let array_size
+	list_size 0 <= if "list index out of bounds" error fail end
+	list list_size array_get_index let value
+	list 0 list_size -- array_set_index
+	value
+end
+
+func list_peek list do
+	list list_get_size let list_size
+	list array_get_size let array_size
+	list_size 0 <= if "list index out of bounds" error fail end
+	list list_size array_get_index let value
+	value
+end
+
+func list_reverse list do
+	0 let tmp_ptr1
+	list list_get_size -- let tmp_ptr2
+				
+	while tmp_ptr2 tmp_ptr1 > do
+		list tmp_ptr1 list_get_index let tmp_v1
+		list tmp_ptr2 list_get_index let tmp_v2
+		list tmp_ptr1 tmp_v2 list_set_index
+		list tmp_ptr2 tmp_v1 list_set_index
+		tmp_ptr1 ++ let tmp_ptr1
+		tmp_ptr2 -- let tmp_ptr2
+	end
+end
+
+func list_get_index_of_string list string do
+	0 let i
+	while list list_get_size i != do
+		list i list_get_index string streq if
+			i ret
+		end
+		i ++ let i
+	end
+	-1
+end
+
+func list_force_get_index_of_string list string do
+	list string list_get_index_of_string -1 = if
+		string strlen ++ malloc let tmp_string
+		string tmp_string strcpy
+		list tmp_string list_add
+	end
+	list string list_get_index_of_string
+end
