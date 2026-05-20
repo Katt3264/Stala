@@ -194,7 +194,6 @@ func parse input_file do
 	"0123456789" let number_chars
 	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_+-*<=>(){}[]?!:/%" let token_first_chars
 	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/%" let token_chars
-	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-*<=>(){}[]?!:/% #.:,;" let string_chars
 	"nts\\\"" let escaped_chars
 	
 	1024 malloc let token_string
@@ -308,13 +307,8 @@ func parse input_file do
 				end
 			
 			else lexer_status status_tokenize_string = elif
-		
-				string_chars char strchr null != if
-					# continue string
-					token_string char strcatchr
-					status_tokenize_string let lexer_status
 				
-				else char "\\" ?8 = elif
+				char "\\" ?8 = if
 					# escaped character
 					token_string char strcatchr
 					status_tokenize_escaped let lexer_status
@@ -324,10 +318,14 @@ func parse input_file do
 					token_string char strcatchr
 					false let lexing_token
 				
-				else
-					"invalid character in string: " error
-					"?\n" dup char !8 error
+				else char EOF = elif
+					# end of file reached
+					"invalid EOF in string\n" error
 					reporter_report error fail
+				else
+					# continue string
+					token_string char strcatchr
+					status_tokenize_string let lexer_status
 					
 				end
 			
@@ -389,6 +387,7 @@ func parse input_file do
 					#"opening file: " print include_string print " fd: " print input_file print_int "\n" print
 
 					input_file -1 = if
+						#TODO:incorrect source file of "include" may be reported here
 						"unable to find file: " error
 						include_string error "\n" error
 						reporter_report error fail
